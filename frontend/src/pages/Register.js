@@ -7,17 +7,18 @@ const Register = () => {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [AuthorName, setAuthorName] = useState(''); // New state for AuthorName
   const navigate = useNavigate();
 
   const handleRegister = async (e) => {
     e.preventDefault();
     try {
-      const response = await registerUser({ username, email, password });
-      console.log('Register response:', response.data); // Add this line
+      const response = await registerUser({ username, email, password, AuthorName });
+      console.log('Register response:', response.data);
       alert('Registration successful');
       navigate('/login');
     } catch (error) {
-      console.error('Registration error:', error); // Add this line to log any error
+      console.error('Registration error:', error);
       alert('Registration failed!');
     }
   };
@@ -45,6 +46,13 @@ const Register = () => {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Password"
+          required
+        />
+        <input
+          type="text"
+          value={AuthorName}
+          onChange={(e) => setAuthorName(e.target.value)}
+          placeholder="Author Name"
           required
         />
         <button type="submit">Register</button>

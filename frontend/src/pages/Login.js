@@ -12,12 +12,12 @@ const Login = () => {
     e.preventDefault();
     try {
       const response = await loginUser({ email, password });
-      console.log('Login response:', response.data); // Add this line
-      localStorage.setItem('token', response.data.token);
-      navigate('/profile');
+      localStorage.setItem('token', response.data.token); // Save the token
+      alert('Login successful');
+      navigate('/home'); // Redirect to User Home page
     } catch (error) {
-      console.error('Login error:', error); // Add this line to log any error
-      alert('Login failed!');
+      console.error('Login error:', error);
+      alert('Login failed! Please check your credentials.');
     }
   };
 

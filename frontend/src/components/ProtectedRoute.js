@@ -2,7 +2,9 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 
-const ProtectedRoute = ({ isAuthenticated, children }) => {
+const ProtectedRoute = ({ children }) => {
+  const isAuthenticated = localStorage.getItem('token'); // Check for authentication dynamically
+
   return isAuthenticated ? children : <Navigate to="/login" />;
 };
 

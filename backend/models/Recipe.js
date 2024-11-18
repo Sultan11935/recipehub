@@ -13,8 +13,8 @@ const recipeSchema = new mongoose.Schema({
   Images: [String],
   RecipeCategory: String,
   Keywords: [String],
-  RecipeIngredientQuantities: [String],
-  RecipeIngredientParts: [String],
+  RecipeIngredientQuantities: String, // Change from [String] to String
+  RecipeIngredientParts: String, // Change from [String] to String
   AggregatedRating: Number,
   ReviewCount: Number,
   Calories: Number,
@@ -28,7 +28,7 @@ const recipeSchema = new mongoose.Schema({
   ProteinContent: Number,
   RecipeServings: Number,
   RecipeYield: String,
-  RecipeInstructions: [String],
+  RecipeInstructions: String, // Change from [String] to String
 });
 
 const Recipe = mongoose.model('Recipe', recipeSchema);

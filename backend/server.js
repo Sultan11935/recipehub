@@ -37,37 +37,41 @@ redisClient.on('error', (err) => {
 // Initialize Express
 const app = express();
 
-// Configure CORS with specific origin and credentials
+// Enable JSON body parsing and CORS
+app.use(express.json()); // Parse JSON payloads
 app.use(cors({
-  origin: 'http://localhost:3000', // Replace with your frontend's URL
-  credentials: true
+  origin: 'http://localhost:3000', // Update to your frontend's URL
+  credentials: true,
 }));
 
-app.use(express.json());
-
-// Redis session store configuration
+// Configure Redis session store
 app.use(session({
   store: new RedisStore({ client: redisClient }),
   secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: false,  // Change to true if using HTTPS in production
+    secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
     httpOnly: true,
     maxAge: 1000 * 60 * 60 * 24, // 1 day
   },
 }));
 
 // Routes
-app.get('/api/status', (req, res) => {
-  res.status(200).json({ message: "API is running!" });
+app.get('/api/status', async (req, res) => {
+  try {
+    res.status(200).json({ message: "API is running!" });
+  } catch (error) {
+    console.error('Error in /api/status:', error.message);
+    res.status(500).json({ message: 'Error fetching status', error: error.message });
+  }
 });
 
 app.use('/api/users', userRoutes);
 app.use('/api/recipes', recipeRoutes);
 app.use('/api/ratings', ratingRoutes);
 
-// Error handling middleware
+// Global error handling middleware
 app.use((err, req, res, next) => {
   console.error('An error occurred:', err.message);
   res.status(500).json({ error: 'An internal server error occurred' });
@@ -75,6 +79,31 @@ app.use((err, req, res, next) => {
 
 // Start server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
+// Graceful shutdown handling
+const shutdown = () => {
+  console.log('Graceful shutdown initiated');
+  
+  // Close HTTP server
+  server.close(() => {
+    console.log('HTTP server closed');
+    
+    // Close MongoDB connection
+    mongoose.connection.close(false, () => {
+      console.log('MongoDB connection closed');
+      
+      // Quit Redis client
+      redisClient.quit(() => {
+        console.log('Redis connection closed');
+        process.exit(0);
+      });
+    });
+  });
+};
+
+// Listen for termination signals to trigger graceful shutdown
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
