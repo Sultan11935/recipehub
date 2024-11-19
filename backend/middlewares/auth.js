@@ -1,12 +1,14 @@
+// middleware/authenticateToken.js
+
 const jwt = require('jsonwebtoken');
 
 const authenticateToken = (req, res, next) => {
   // Extract the token from the Authorization header if available
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+  const token = authHeader && authHeader.split(' ')[1]; // Format: "Bearer <token>"
 
   if (!token) {
-    console.log('Access Denied: No Token Provided'); // Debugging log
+    console.log('Access Denied: No Token Provided');
     return res.status(401).json({ message: 'Access Denied: No Token Provided' });
   }
 

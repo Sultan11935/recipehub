@@ -7,6 +7,7 @@ const cors = require('cors');
 const userRoutes = require('./routes/users');
 const recipeRoutes = require('./routes/recipes');
 const ratingRoutes = require('./routes/ratings');
+const adminRoutes = require('./routes/adminRoutes'); // Import the admin routes
 require('dotenv').config();
 
 // Check required environment variables
@@ -57,7 +58,7 @@ app.use(session({
   },
 }));
 
-// Routes
+// Status check route
 app.get('/api/status', async (req, res) => {
   try {
     res.status(200).json({ message: "API is running!" });
@@ -67,9 +68,11 @@ app.get('/api/status', async (req, res) => {
   }
 });
 
+// Register routes
 app.use('/api/users', userRoutes);
 app.use('/api/recipes', recipeRoutes);
 app.use('/api/ratings', ratingRoutes);
+app.use('/api/admin', adminRoutes); // Register the admin routes
 
 // Global error handling middleware
 app.use((err, req, res, next) => {

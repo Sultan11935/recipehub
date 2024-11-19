@@ -57,6 +57,21 @@ export const updateProfile = (profileData) => axiosInstance.put('/users/profile'
 // Deletes the user and all associated data
 export const deleteUser = () => axiosInstance.delete('/users/profile');
 
+
+// Admin API
+
+// Fetch paginated list of all users (Admin-only)
+export const fetchAllUsers = (page = 1) => axiosInstance.get(`/admin/users?page=${page}`);
+
+// Update a user's details (Admin-only)
+export const updateUserByAdmin = (userId, userData) => axiosInstance.put(`/admin/users/${userId}`, userData);
+
+// Delete a user (Admin-only)
+export const deleteUserByAdmin = (userId) => axiosInstance.delete(`/admin/users/${userId}`);
+
+
+
+
 // Recipe API
 // Fetches all recipes created by the user
 export const getUserRecipes = () => axiosInstance.get('/recipes/user');

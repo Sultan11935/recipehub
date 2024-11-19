@@ -20,7 +20,6 @@ router.put('/profile', authenticateToken, updateProfile);
 // Route for deleting user and associated data
 router.delete('/profile', authenticateToken, deleteUser);
 
-// Admin-only route to view all users
-router.get('/adminuser', authenticateToken, authorizeRole(['admin']), getAllUsers); // Only accessible by admin
+
 
 module.exports = router;

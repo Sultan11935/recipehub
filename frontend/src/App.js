@@ -11,6 +11,7 @@ import Profile from './pages/Profile';
 import Landing from './pages/Landing';
 import UserHome from './pages/UserHome';
 import AdminLanding from './pages/AdminLanding';
+import ManageUsers from './pages/ManageUsers';
 import ProtectedRoute from './components/ProtectedRoute';
 
 const App = () => {
@@ -79,6 +80,18 @@ const App = () => {
               </ProtectedRoute>
             }
           />
+
+          {/* Manage Users - Admin-only route */}
+          <Route
+            path="/manage-users"
+            element={
+              <ProtectedRoute requiredRole="admin">
+                <ManageUsers />
+              </ProtectedRoute>
+            }
+          />
+
+
         </Routes>
       </div>
     </Router>
