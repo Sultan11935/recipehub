@@ -1,6 +1,6 @@
 // src/App.js
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -10,47 +10,45 @@ import AddRecipe from './pages/AddRecipe';
 import Profile from './pages/Profile';
 import Landing from './pages/Landing';
 import UserHome from './pages/UserHome';
+import AdminLanding from './pages/AdminLanding';
 import ProtectedRoute from './components/ProtectedRoute';
 
-function App() {
-  const isAuthenticated = !!localStorage.getItem('token'); // Check if user is logged in
-
+const App = () => {
   return (
     <Router>
       <Navbar />
       <div className="container">
         <Routes>
-          {/* Redirect root URL to UserHome if authenticated */}
-          <Route
-            path="/"
-            element={isAuthenticated ? <Navigate to="/home" /> : <Landing />}
-          />
+          {/* Default Route */}
+          <Route path="/" element={<Landing />} />
 
-          {/* Authentication routes */}
+          {/* Authentication Routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
 
-          {/* Protected routes */}
+          {/* User Home Route */}
           <Route
             path="/home"
             element={
-              <ProtectedRoute isAuthenticated={isAuthenticated}>
+              <ProtectedRoute>
                 <UserHome />
               </ProtectedRoute>
             }
           />
+
+          {/* Recipe Routes */}
           <Route
             path="/RecipeList"
             element={
-              <ProtectedRoute isAuthenticated={isAuthenticated}>
-                <RecipeList /> {/* RecipeList accessible at /RecipeList */}
+              <ProtectedRoute>
+                <RecipeList />
               </ProtectedRoute>
             }
           />
           <Route
             path="/recipes/:id"
             element={
-              <ProtectedRoute isAuthenticated={isAuthenticated}>
+              <ProtectedRoute>
                 <RecipeDetail />
               </ProtectedRoute>
             }
@@ -58,7 +56,7 @@ function App() {
           <Route
             path="/add-recipe"
             element={
-              <ProtectedRoute isAuthenticated={isAuthenticated}>
+              <ProtectedRoute>
                 <AddRecipe />
               </ProtectedRoute>
             }
@@ -66,8 +64,18 @@ function App() {
           <Route
             path="/profile"
             element={
-              <ProtectedRoute isAuthenticated={isAuthenticated}>
+              <ProtectedRoute>
                 <Profile />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Admin-only Route */}
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute requiredRole="admin">
+                <AdminLanding />
               </ProtectedRoute>
             }
           />
@@ -75,6 +83,6 @@ function App() {
       </div>
     </Router>
   );
-}
+};
 
 export default App;

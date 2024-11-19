@@ -1,4 +1,3 @@
-// src/pages/Profile.js
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getProfile, updateProfile, deleteUser } from '../services/api';
@@ -12,12 +11,22 @@ const Profile = () => {
 
   useEffect(() => {
     const fetchProfile = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('Please log in to access your profile.');
+        navigate('/login');
+        return;
+      }
+
       try {
         const response = await getProfile();
         setUser(response.data);
         setAuthorName(response.data.AuthorName || '');
       } catch (error) {
         console.error('Failed to load profile:', error);
+        alert('Session expired or unauthorized access. Please log in again.');
+        localStorage.removeItem('token');
+        localStorage.removeItem('role');
         navigate('/login');
       }
     };
@@ -27,9 +36,8 @@ const Profile = () => {
 
   const handleUpdate = async () => {
     try {
-      // Only sending AuthorName for update
       await updateProfile({ AuthorName: authorName });
-      alert('Profile updated successfully');
+      alert('Profile updated successfully. Associated recipes will reflect the updated author name.');
       setUser((prevUser) => ({ ...prevUser, AuthorName: authorName }));
       setIsEditing(false);
     } catch (error) {
@@ -41,17 +49,16 @@ const Profile = () => {
       }
     }
   };
-  
-  
 
   const handleDeleteAccount = async () => {
-    const confirmed = window.confirm('Are you sure you want to delete your account and all associated recipes?');
+    const confirmed = window.confirm('Are you sure you want to delete your account and all associated recipes? This action cannot be undone.');
     if (!confirmed) return;
 
     try {
       await deleteUser();
-      alert('Account deleted successfully');
-      localStorage.removeItem('token'); // Remove token from localStorage
+      alert('Account and all associated recipes deleted successfully');
+      localStorage.removeItem('token');
+      localStorage.removeItem('role');
       navigate('/register');
     } catch (error) {
       console.error('Failed to delete account:', error);
@@ -81,7 +88,7 @@ const Profile = () => {
         ) : (
           <p><strong>Author Name:</strong> {user.AuthorName || 'N/A'}</p>
         )}
-        
+
         <div className="button-container">
           {!isEditing && <button onClick={() => setIsEditing(true)}>Edit Author Name</button>}
           <button onClick={handleDeleteAccount} className="delete-account-button">Delete Account</button>

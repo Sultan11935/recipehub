@@ -12,9 +12,9 @@ const AddRecipe = () => {
     TotalTime: '',
     DatePublished: new Date().toISOString().split('T')[0], // Today's date
     Description: '',
-    Images: '',
+    Images: '', // Comma-separated for input
     RecipeCategory: '',
-    Keywords: '',
+    Keywords: '', // Comma-separated for input
     RecipeIngredientQuantities: '',
     RecipeIngredientParts: '',
     RecipeInstructions: '',
@@ -28,9 +28,17 @@ const AddRecipe = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // Prepare formData for backend structure
+    const recipeData = {
+      ...formData,
+      Images: formData.Images.split(',').map((url) => url.trim()),
+      Keywords: formData.Keywords.split(',').map((keyword) => keyword.trim()),
+    };
+
     try {
-      await createRecipe(formData, token);
+      await createRecipe(recipeData, token);
       alert('Recipe added successfully');
+      // Reset formData after successful addition
       setFormData({
         Name: '',
         CookTime: '',
@@ -82,7 +90,7 @@ const AddRecipe = () => {
         </div>
 
         <div className="full-width">
-          <label>Image URLs</label>
+          <label>Image URLs (comma-separated)</label>
           <input type="text" name="Images" value={formData.Images} onChange={handleChange} />
         </div>
 
@@ -92,7 +100,7 @@ const AddRecipe = () => {
         </div>
 
         <div className="full-width">
-          <label>Keywords</label>
+          <label>Keywords (comma-separated)</label>
           <input type="text" name="Keywords" value={formData.Keywords} onChange={handleChange} />
         </div>
 

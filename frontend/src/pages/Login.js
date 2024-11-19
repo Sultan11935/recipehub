@@ -12,11 +12,31 @@ const Login = () => {
     e.preventDefault();
     try {
       const response = await loginUser({ email, password });
-      localStorage.setItem('token', response.data.token); // Save the token
-      alert('Login successful');
-      navigate('/home'); // Redirect to User Home page
+      console.log('Full login response:', response); // Inspect the full response
+
+      // Access token and role from the response
+      const token = response.token;
+      const role = response.role;
+
+      if (token && role) {
+        // Save token and role to localStorage
+        localStorage.setItem('token', token);
+        localStorage.setItem('role', role);
+
+        console.log('Token after setting:', localStorage.getItem('token'));
+        console.log('Role after setting:', localStorage.getItem('role'));
+
+        // Role-based redirection
+        if (role === 'admin') {
+          navigate('/admin'); // Redirect to Admin Landing Page
+        } else {
+          navigate('/home'); // Redirect to User Home Page
+        }
+      } else {
+        alert('Login failed: Token or role missing in response.');
+      }
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('Login error:', error.response ? error.response.data : error.message);
       alert('Login failed! Please check your credentials.');
     }
   };

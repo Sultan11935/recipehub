@@ -2,22 +2,20 @@ const express = require('express');
 const router = express.Router();
 const {
   createRecipe,
-  getRecipes,
   getUserRecipes,
   getRecipeById,
   updateRecipe,
   deleteRecipe,
-} = require('../controllers/recipeController');
-const authenticateToken = require('../middlewares/auth'); // Authentication middleware
-const cache = require('../middlewares/cache'); // Caching middleware
+} = require('../controllers/recipeController'); // Ensure these are correctly imported
+const authenticateToken = require('../middlewares/auth'); // Import auth middleware
+const cache = require('../middlewares/cache'); // Import cache middleware
 
+// Ensure each route has the correct middleware and handler functions
 
-//router.get('/', getRecipes); // Public route to get all recipes
-router.post('/', authenticateToken, createRecipe); // Protect route to create recipe
-router.get('/user', authenticateToken, getUserRecipes); // Protect route to get user's recipes
-router.get('/:id', authenticateToken, getRecipeById); // Protect route to get recipe by ID
-router.put('/:id', authenticateToken, updateRecipe); // Protect route to update recipe
-router.delete('/:id', authenticateToken, deleteRecipe); // Protect route to delete recipe
-
+router.post('/', authenticateToken, createRecipe); // Route to create a recipe
+router.get('/user', authenticateToken, cache, getUserRecipes); // Route to get user's recipes with cache
+router.get('/:id', authenticateToken, cache, getRecipeById);
+router.put('/:id', authenticateToken, updateRecipe); // Route to update a recipe
+router.delete('/:id', authenticateToken, deleteRecipe); // Route to delete a recipe
 
 module.exports = router;

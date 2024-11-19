@@ -3,8 +3,7 @@ const mongoose = require('mongoose');
 const recipeSchema = new mongoose.Schema({
   RecipeId: { type: Number, unique: true },
   Name: { type: String, required: true },
-  AuthorId: { type: Number, required: true },
-  AuthorName: { type: String },
+  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }, // Reference to User model
   CookTime: String,
   PrepTime: String,
   TotalTime: String,
@@ -13,8 +12,8 @@ const recipeSchema = new mongoose.Schema({
   Images: [String],
   RecipeCategory: String,
   Keywords: [String],
-  RecipeIngredientQuantities: String, // Change from [String] to String
-  RecipeIngredientParts: String, // Change from [String] to String
+  RecipeIngredientQuantities: String,
+  RecipeIngredientParts: String,
   AggregatedRating: Number,
   ReviewCount: Number,
   Calories: Number,
@@ -28,7 +27,16 @@ const recipeSchema = new mongoose.Schema({
   ProteinContent: Number,
   RecipeServings: Number,
   RecipeYield: String,
-  RecipeInstructions: String, // Change from [String] to String
+  RecipeInstructions: String,
+});
+
+// Middleware for auto-generating a unique RecipeId
+recipeSchema.pre('save', async function (next) {
+  if (!this.RecipeId) {
+    const lastRecipe = await mongoose.model('Recipe').findOne().sort({ RecipeId: -1 });
+    this.RecipeId = lastRecipe ? lastRecipe.RecipeId + 1 : 1;
+  }
+  next();
 });
 
 const Recipe = mongoose.model('Recipe', recipeSchema);

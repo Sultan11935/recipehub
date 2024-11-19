@@ -10,6 +10,11 @@ const userSchema = new Schema({
   username: { type: String, required: true, unique: true },
   email: { type: String, required: true, unique: true },
   passwordHash: { type: String, required: true },
+  role: {
+    type: String,
+    enum: ['registered', 'unregistered', 'admin'],
+    default: 'registered'
+  }
 });
 
 // Pre-save hook to auto-increment AuthorId
