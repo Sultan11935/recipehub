@@ -1,3 +1,4 @@
+// src/pages/Profile.js
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getProfile, updateProfile, deleteUser } from '../services/api';
@@ -51,7 +52,9 @@ const Profile = () => {
   };
 
   const handleDeleteAccount = async () => {
-    const confirmed = window.confirm('Are you sure you want to delete your account and all associated recipes? This action cannot be undone.');
+    const confirmed = window.confirm(
+      'Are you sure you want to delete your account and all associated recipes? This action cannot be undone.'
+    );
     if (!confirmed) return;
 
     try {
@@ -68,30 +71,45 @@ const Profile = () => {
 
   return (
     <div className="profile-container">
-      <h2>Profile</h2>
-      <div className="profile-details">
-        <p><strong>Username:</strong> {user.username}</p>
-        <p><strong>Email:</strong> {user.email}</p>
-        <p><strong>Author ID:</strong> {user.AuthorId}</p>
+      <h1 className="profile-title">Profile</h1>
+      <div className="profile-card">
+        <div className="profile-info">
+          <p><strong>Username:</strong> {user.username}</p>
+          <p><strong>Email:</strong> {user.email}</p>
+          <p><strong>Author ID:</strong> {user.AuthorId}</p>
+        </div>
 
         {isEditing ? (
-          <>
-            <label>Author Name</label>
+          <div className="profile-edit-form">
+            <label className="profile-label">Author Name:</label>
             <input
               type="text"
               value={authorName}
               onChange={(e) => setAuthorName(e.target.value)}
+              className="profile-input"
             />
-            <button onClick={handleUpdate}>Save</button>
-            <button onClick={() => setIsEditing(false)}>Cancel</button>
-          </>
+            <div className="profile-actions">
+              <button onClick={handleUpdate} className="save-button">
+                Save
+              </button>
+              <button onClick={() => setIsEditing(false)} className="cancel-button">
+                Cancel
+              </button>
+            </div>
+          </div>
         ) : (
           <p><strong>Author Name:</strong> {user.AuthorName || 'N/A'}</p>
         )}
 
-        <div className="button-container">
-          {!isEditing && <button onClick={() => setIsEditing(true)}>Edit Author Name</button>}
-          <button onClick={handleDeleteAccount} className="delete-account-button">Delete Account</button>
+        <div className="profile-actions">
+          {!isEditing && (
+            <button onClick={() => setIsEditing(true)} className="edit-button">
+              Edit Author Name
+            </button>
+          )}
+          <button onClick={handleDeleteAccount} className="delete-account-button">
+            Delete Account
+          </button>
         </div>
       </div>
     </div>

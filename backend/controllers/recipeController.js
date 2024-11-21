@@ -72,9 +72,7 @@ exports.getUserRecipes = async (req, res) => {
 };
 
 
-// Get a single recipe by MongoDB _id
 
-// Get a single recipe by ID
 // Get a single recipe by MongoDB _id
 exports.getRecipeById = async (req, res) => {
   const { id } = req.params;

@@ -98,7 +98,7 @@ const ManageUsers = () => {
                 <td>{user.email}</td>
                 <td className="author-name-cell">
                   {editingUserId === user._id ? (
-                    <>
+                    <div className="inline-form">
                       <input
                         type="text"
                         value={tempAuthorName}
@@ -117,9 +117,9 @@ const ManageUsers = () => {
                       >
                         Cancel
                       </button>
-                    </>
+                    </div>
                   ) : (
-                    <>
+                    <div className="inline-display">
                       {user.AuthorName}
                       <button
                         onClick={() => handleEditAuthorName(user._id, user.AuthorName)}
@@ -127,7 +127,7 @@ const ManageUsers = () => {
                       >
                         Edit
                       </button>
-                    </>
+                    </div>
                   )}
                 </td>
                 <td>

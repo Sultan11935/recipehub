@@ -16,41 +16,43 @@ const Navbar = () => {
 
   return (
     <nav className="navbar">
-      <ul className="navbar-list">
-        <li className="navbar-item">
-          <Link to={isAuthenticated ? '/home' : '/'}>Home</Link>
-        </li>
-        {isAuthenticated && role === 'admin' && (
-          <li className="navbar-item">
-            <Link to="/admin">Admin Dashboard</Link>
-          </li>
-        )}
-        {isAuthenticated && role !== 'admin' && (
-          <li className="navbar-item">
-            <Link to="/RecipeList">My Recipes</Link>
-          </li>
-        )}
-        {isAuthenticated && (
-          <>
+      <div className="navbar-container">
+        <div className="navbar-logo">
+          <Link to={isAuthenticated ? '/home' : '/'}>RecipeHub</Link>
+        </div>
+        <ul className="navbar-list">
+          {isAuthenticated && role === 'admin' && (
             <li className="navbar-item">
-              <Link to="/profile">Profile</Link>
+              <Link to="/admin">Admin Dashboard</Link>
             </li>
+          )}
+          {isAuthenticated && role !== 'admin' && (
             <li className="navbar-item">
-              <button className="navbar-logout" onClick={handleLogout}>Logout</button>
+              <Link to="/RecipeList">My Recipes</Link>
             </li>
-          </>
-        )}
-        {!isAuthenticated && (
-          <>
-            <li className="navbar-item">
-              <Link to="/login">Login</Link>
-            </li>
-            <li className="navbar-item">
-              <Link to="/register">Register</Link>
-            </li>
-          </>
-        )}
-      </ul>
+          )}
+          {isAuthenticated && (
+            <>
+              <li className="navbar-item">
+                <Link to="/profile">Profile</Link>
+              </li>
+              <li className="navbar-item">
+                <button className="navbar-logout" onClick={handleLogout}>Logout</button>
+              </li>
+            </>
+          )}
+          {!isAuthenticated && (
+            <>
+              <li className="navbar-item">
+                <Link to="/login">Login</Link>
+              </li>
+              <li className="navbar-item">
+                <Link to="/register">Register</Link>
+              </li>
+            </>
+          )}
+        </ul>
+      </div>
     </nav>
   );
 };

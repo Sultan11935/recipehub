@@ -18,6 +18,17 @@ const AddRecipe = () => {
     RecipeIngredientQuantities: '',
     RecipeIngredientParts: '',
     RecipeInstructions: '',
+    Calories: '',
+    FatContent: '',
+    SaturatedFatContent: '',
+    CholesterolContent: '',
+    SodiumContent: '',
+    CarbohydrateContent: '',
+    FiberContent: '',
+    SugarContent: '',
+    ProteinContent: '',
+    RecipeServings: '',
+    RecipeYield: '',
   });
 
   const handleChange = (e) => {
@@ -33,6 +44,16 @@ const AddRecipe = () => {
       ...formData,
       Images: formData.Images.split(',').map((url) => url.trim()),
       Keywords: formData.Keywords.split(',').map((keyword) => keyword.trim()),
+      Calories: parseFloat(formData.Calories) || 0,
+      FatContent: parseFloat(formData.FatContent) || 0,
+      SaturatedFatContent: parseFloat(formData.SaturatedFatContent) || 0,
+      CholesterolContent: parseFloat(formData.CholesterolContent) || 0,
+      SodiumContent: parseFloat(formData.SodiumContent) || 0,
+      CarbohydrateContent: parseFloat(formData.CarbohydrateContent) || 0,
+      FiberContent: parseFloat(formData.FiberContent) || 0,
+      SugarContent: parseFloat(formData.SugarContent) || 0,
+      ProteinContent: parseFloat(formData.ProteinContent) || 0,
+      RecipeServings: parseFloat(formData.RecipeServings) || 0,
     };
 
     try {
@@ -52,6 +73,17 @@ const AddRecipe = () => {
         RecipeIngredientQuantities: '',
         RecipeIngredientParts: '',
         RecipeInstructions: '',
+        Calories: '',
+        FatContent: '',
+        SaturatedFatContent: '',
+        CholesterolContent: '',
+        SodiumContent: '',
+        CarbohydrateContent: '',
+        FiberContent: '',
+        SugarContent: '',
+        ProteinContent: '',
+        RecipeServings: '',
+        RecipeYield: '',
       });
     } catch (error) {
       console.error('Error adding recipe:', error);
@@ -72,7 +104,7 @@ const AddRecipe = () => {
           <label>Cook Time</label>
           <input type="text" name="CookTime" value={formData.CookTime} onChange={handleChange} />
         </div>
-        
+
         <div>
           <label>Prep Time</label>
           <input type="text" name="PrepTime" value={formData.PrepTime} onChange={handleChange} />
@@ -86,7 +118,6 @@ const AddRecipe = () => {
         <div className="full-width">
           <label>Description</label>
           <textarea name="Description" value={formData.Description} onChange={handleChange}></textarea>
-          <div className="char-counter">{formData.Description.length}/200</div>
         </div>
 
         <div className="full-width">
@@ -117,6 +148,61 @@ const AddRecipe = () => {
         <div className="full-width">
           <label>Instructions</label>
           <textarea name="RecipeInstructions" value={formData.RecipeInstructions} onChange={handleChange} required></textarea>
+        </div>
+
+        <div className="full-width">
+          <label>Calories</label>
+          <input type="number" name="Calories" value={formData.Calories} onChange={handleChange} />
+        </div>
+
+        <div className="full-width">
+          <label>Fat Content</label>
+          <input type="number" name="FatContent" value={formData.FatContent} onChange={handleChange} />
+        </div>
+
+        <div className="full-width">
+          <label>Saturated Fat Content</label>
+          <input type="number" name="SaturatedFatContent" value={formData.SaturatedFatContent} onChange={handleChange} />
+        </div>
+
+        <div className="full-width">
+          <label>Cholesterol Content</label>
+          <input type="number" name="CholesterolContent" value={formData.CholesterolContent} onChange={handleChange} />
+        </div>
+
+        <div className="full-width">
+          <label>Sodium Content</label>
+          <input type="number" name="SodiumContent" value={formData.SodiumContent} onChange={handleChange} />
+        </div>
+
+        <div className="full-width">
+          <label>Carbohydrate Content</label>
+          <input type="number" name="CarbohydrateContent" value={formData.CarbohydrateContent} onChange={handleChange} />
+        </div>
+
+        <div className="full-width">
+          <label>Fiber Content</label>
+          <input type="number" name="FiberContent" value={formData.FiberContent} onChange={handleChange} />
+        </div>
+
+        <div className="full-width">
+          <label>Sugar Content</label>
+          <input type="number" name="SugarContent" value={formData.SugarContent} onChange={handleChange} />
+        </div>
+
+        <div className="full-width">
+          <label>Protein Content</label>
+          <input type="number" name="ProteinContent" value={formData.ProteinContent} onChange={handleChange} />
+        </div>
+
+        <div className="full-width">
+          <label>Recipe Servings</label>
+          <input type="number" name="RecipeServings" value={formData.RecipeServings} onChange={handleChange} />
+        </div>
+
+        <div className="full-width">
+          <label>Recipe Yield</label>
+          <input type="text" name="RecipeYield" value={formData.RecipeYield} onChange={handleChange} />
         </div>
 
         <div className="form-actions">

@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { loginUser } from '../services/api';
+import '../App.css';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -12,25 +13,19 @@ const Login = () => {
     e.preventDefault();
     try {
       const response = await loginUser({ email, password });
-      console.log('Full login response:', response); // Inspect the full response
+      console.log('Full login response:', response);
 
-      // Access token and role from the response
       const token = response.token;
       const role = response.role;
 
       if (token && role) {
-        // Save token and role to localStorage
         localStorage.setItem('token', token);
         localStorage.setItem('role', role);
 
-        console.log('Token after setting:', localStorage.getItem('token'));
-        console.log('Role after setting:', localStorage.getItem('role'));
-
-        // Role-based redirection
         if (role === 'admin') {
-          navigate('/admin'); // Redirect to Admin Landing Page
+          navigate('/admin');
         } else {
-          navigate('/home'); // Redirect to User Home Page
+          navigate('/home');
         }
       } else {
         alert('Login failed: Token or role missing in response.');
@@ -42,25 +37,35 @@ const Login = () => {
   };
 
   return (
-    <div>
-      <h2>Login</h2>
-      <form onSubmit={handleLogin}>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="Email"
-          required
-        />
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Password"
-          required
-        />
-        <button type="submit">Login</button>
-      </form>
+    <div className="login-container">
+      <div className="login-card">
+        <h2 className="login-title">Login</h2>
+        <form onSubmit={handleLogin} className="login-form">
+          <div className="form-group">
+            <label>Email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Enter your email"
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label>Password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Enter your password"
+              required
+            />
+          </div>
+          <button type="submit" className="login-button">
+            Login
+          </button>
+        </form>
+      </div>
     </div>
   );
 };
