@@ -12,6 +12,7 @@ import Landing from './pages/Landing';
 import UserHome from './pages/UserHome';
 import AdminLanding from './pages/AdminLanding';
 import ManageUsers from './pages/ManageUsers';
+import ManageRecipes from './pages/ManageRecipes'
 import ProtectedRoute from './components/ProtectedRoute';
 
 const App = () => {
@@ -90,6 +91,15 @@ const App = () => {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/manage-recipes"
+            element={
+              <ProtectedRoute requiredRole="admin">
+                <ManageRecipes />
+              </ProtectedRoute>
+            }
+          />
+
 
 
         </Routes>

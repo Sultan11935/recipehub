@@ -1,12 +1,11 @@
 const express = require('express');
-const { addRating, getRatings } = require('../controllers/ratingController');
+const { addOrUpdateRating, deleteRating, getRatingsForRecipe } = require('../controllers/ratingController');
 const authenticateToken = require('../middlewares/auth'); // Authentication middleware
 const router = express.Router();
 
-// Add a new rating (protected route)
-router.post('/', authenticateToken, addRating);
+router.post('/:recipeId', authenticateToken, addOrUpdateRating); // Add or update a rating
+router.delete('/:recipeId', authenticateToken, deleteRating); // Delete a rating
+router.get('/:recipeId', authenticateToken, getRatingsForRecipe); // Get ratings for a recipe
 
-// Get all ratings (public route)
-router.get('/', getRatings);
 
 module.exports = router;

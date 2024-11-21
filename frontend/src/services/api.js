@@ -70,6 +70,10 @@ export const updateUserByAdmin = (userId, userData) => axiosInstance.put(`/admin
 export const deleteUserByAdmin = (userId) => axiosInstance.delete(`/admin/users/${userId}`);
 
 
+// Admin API for managing recipes
+export const fetchAllRecipes = (page = 1) => axiosInstance.get(`/admin/recipes?page=${page}`);
+export const updateRecipeByAdmin = (recipeId, recipeData) => axiosInstance.put(`/admin/recipes/${recipeId}`, recipeData);
+export const deleteRecipeByAdmin = (recipeId) => axiosInstance.delete(`/admin/recipes/${recipeId}`);
 
 
 // Recipe API
@@ -87,6 +91,10 @@ export const updateRecipe = (id, recipeData) => axiosInstance.put(`/recipes/${id
 
 // Deletes a recipe by its ID
 export const deleteRecipe = (id) => axiosInstance.delete(`/recipes/${id}`);
+
+
+
+
 
 // Rating API
 // Adds a rating to a recipe
