@@ -1,6 +1,7 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Rating = require('../models/Rating');
 const Recipe = require('../models/Recipe');
 const redisClient = require('../config/redis'); // Import Redis client
 
@@ -132,18 +133,21 @@ exports.updateProfile = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Update AuthorName in all related recipes
     await Recipe.updateMany({ AuthorId: updatedUser.AuthorId }, { AuthorName: updatedUser.AuthorName });
 
-    // Invalidate cache for user and recipes
+    // Invalidate Redis cache for user and recipes
     await redisClient.del(`user:${userId}`);
-    await redisClient.del(`recipes:${updatedUser.AuthorId}`);
+    await redisClient.del('top-popular-recipes');
+    const keys = await redisClient.keys('search:*');
+    if (keys.length > 0) await redisClient.del(keys);
 
     res.status(200).json(updatedUser);
   } catch (error) {
+    console.error('Error updating profile:', error.message);
     res.status(500).json({ message: 'Error updating profile', error: error.message });
   }
 };
+
 
 // Fetch recipes by AuthorId with caching
 exports.getUserRecipes = async (req, res) => {
@@ -170,3 +174,55 @@ exports.getUserRecipes = async (req, res) => {
   }
 };
 
+// Get Top 10 Active Users (by most reviews) with Redis Caching
+exports.getTopActiveUsers = async (req, res) => {
+  const cacheKey = 'top-active-users'; // Cache key for Redis
+
+  try {
+    // Check if data exists in Redis cache
+    const cachedData = await redisClient.get(cacheKey);
+    if (cachedData) {
+      console.log('Serving Top Active Users from Redis Cache');
+      return res.status(200).json(JSON.parse(cachedData));
+    }
+
+    // Aggregate query to calculate top 10 active users
+    const topUsers = await Rating.aggregate([
+      {
+        $group: {
+          _id: "$user", // Group by user ID
+          reviewCount: { $sum: 1 }, // Count the number of reviews
+        },
+      },
+      { $sort: { reviewCount: -1 } }, // Sort by review count descending
+      { $limit: 10 }, // Limit to top 10 users
+      {
+        $lookup: {
+          from: "users", // Join with 'users' collection
+          localField: "_id",
+          foreignField: "_id",
+          as: "userDetails",
+        },
+      },
+      { $unwind: "$userDetails" }, // Flatten userDetails array
+      {
+        $project: {
+          _id: 0,
+          userId: "$userDetails._id",
+          AuthorName: "$userDetails.AuthorName",
+          reviewCount: 1,
+        },
+      },
+    ]);
+
+    // Cache the result in Redis for 1 hour (3600 seconds)
+    await redisClient.setEx(cacheKey, 3600, JSON.stringify(topUsers));
+    console.log('Serving Top Active Users from MongoDB and Caching in Redis');
+
+    // Send response
+    res.status(200).json(topUsers);
+  } catch (error) {
+    console.error('Error fetching top active users:', error.message);
+    res.status(500).json({ message: 'Failed to fetch top active users', error: error.message });
+  }
+};

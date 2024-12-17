@@ -91,8 +91,9 @@ const ManageRecipes = () => {
           {recipes.map((recipe, index) => (
             <div key={recipe._id} className="recipe-card">
               <h3 className="recipe-title">
-                {index + 1}. {recipe.Name} (ID: {recipe.RecipeId || 'Not Available'})
+                {(page - 1) * 20 + (index + 1)}. {recipe.Name} (ID: {recipe.RecipeId || 'Not Available'})
               </h3>
+
               <p>
                 <strong>Author Name:</strong> {recipe.user?.AuthorName || 'N/A'}
               </p>

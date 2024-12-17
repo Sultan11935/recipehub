@@ -19,9 +19,14 @@ const Login = () => {
       const role = response.role;
 
       if (token && role) {
+        // Store token and role in localStorage
         localStorage.setItem('token', token);
         localStorage.setItem('role', role);
 
+        // Clear sessionStorage to remove stale session data
+        sessionStorage.clear();
+
+        // Navigate based on role
         if (role === 'admin') {
           navigate('/admin');
         } else {

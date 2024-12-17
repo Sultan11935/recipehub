@@ -1,20 +1,22 @@
 // src/pages/AddRecipe.js
+import { useNavigate } from 'react-router-dom'; 
 import React, { useState } from 'react';
 import { createRecipe } from '../services/api';
 
 const AddRecipe = () => {
   const token = localStorage.getItem('token');
+  const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
     Name: '',
     CookTime: '',
     PrepTime: '',
     TotalTime: '',
-    DatePublished: new Date().toISOString().split('T')[0], // Today's date
+    DatePublished: new Date().toISOString().split('T')[0],
     Description: '',
-    Images: '', // Comma-separated for input
+    Images: '',
     RecipeCategory: '',
-    Keywords: '', // Comma-separated for input
+    Keywords: '',
     RecipeIngredientQuantities: '',
     RecipeIngredientParts: '',
     RecipeInstructions: '',
@@ -39,7 +41,6 @@ const AddRecipe = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Prepare formData for backend structure
     const recipeData = {
       ...formData,
       Images: formData.Images.split(',').map((url) => url.trim()),
@@ -59,32 +60,7 @@ const AddRecipe = () => {
     try {
       await createRecipe(recipeData, token);
       alert('Recipe added successfully');
-      // Reset formData after successful addition
-      setFormData({
-        Name: '',
-        CookTime: '',
-        PrepTime: '',
-        TotalTime: '',
-        DatePublished: new Date().toISOString().split('T')[0],
-        Description: '',
-        Images: '',
-        RecipeCategory: '',
-        Keywords: '',
-        RecipeIngredientQuantities: '',
-        RecipeIngredientParts: '',
-        RecipeInstructions: '',
-        Calories: '',
-        FatContent: '',
-        SaturatedFatContent: '',
-        CholesterolContent: '',
-        SodiumContent: '',
-        CarbohydrateContent: '',
-        FiberContent: '',
-        SugarContent: '',
-        ProteinContent: '',
-        RecipeServings: '',
-        RecipeYield: '',
-      });
+      navigate('/RecipeList'); // Redirect to Recipe List page after success
     } catch (error) {
       console.error('Error adding recipe:', error);
       alert('Failed to add recipe');

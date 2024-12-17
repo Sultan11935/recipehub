@@ -57,20 +57,53 @@ exports.createRecipe = async (req, res) => {
 // Get all recipes for the logged-in user
 exports.getUserRecipes = async (req, res) => {
   try {
-    // Find recipes where the `user` field matches `req.user.userId`
-    const recipes = await Recipe.find({ user: req.user.userId }).populate('user', 'username AuthorName');
+    // Fetch recipes for the logged-in user using the user ID
+    const recipes = await Recipe.find({ user: req.user.userId })
+      .populate('user', 'username AuthorName') // Populate only required fields
+      .select('Name Description AggregatedRating ReviewCount'); // Return essential recipe fields
 
-    if (recipes.length === 0) {
+    if (!recipes || recipes.length === 0) {
       return res.status(404).json({ message: 'No recipes found for this user' });
     }
 
     res.status(200).json(recipes);
   } catch (error) {
-    console.error('Error fetching user recipes:', error);
+    console.error('Error fetching user recipes:', error.message);
     res.status(500).json({ message: 'Error fetching user recipes', error: error.message });
   }
 };
 
+
+
+
+// Get all recipes with pagination
+exports.getAllRecipes = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = 20;
+    const skip = (page - 1) * limit;
+
+    // Check if the request is from an admin (authenticated)
+    const isAdmin = req.user && req.user.role === 'admin';
+
+    // Fetch recipes and conditionally populate user details
+    const recipes = await Recipe.find()
+      .populate('user', isAdmin ? 'AuthorName AuthorId email' : 'AuthorName AuthorId') // Public gets basic info, admin gets full details
+      .select(isAdmin ? '' : 'Name Description AggregatedRating ReviewCount RecipeIngredientParts Keywords') // Restrict fields for public
+      .skip(skip)
+      .limit(limit);
+
+    const totalRecipes = await Recipe.countDocuments();
+
+    res.status(200).json({
+      recipes,
+      totalPages: Math.ceil(totalRecipes / limit),
+      currentPage: page,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error retrieving recipes', error: error.message });
+  }
+};
 
 
 // Get a single recipe by MongoDB _id
@@ -111,8 +144,11 @@ exports.updateRecipe = async (req, res) => {
       return res.status(404).json({ message: 'Recipe not found or not authorized' });
     }
 
-    await redisClient.setEx(`recipe:${id}`, 3600, JSON.stringify(updatedRecipe));
-    await redisClient.del('recipes'); // Clear cache of all recipes
+    // Invalidate Redis cache
+    await redisClient.del(`recipe:${id}`);
+    await redisClient.del('top-popular-recipes');
+    const keys = await redisClient.keys('search:*');
+    if (keys.length > 0) await redisClient.del(keys); // Invalidate all search queries
 
     res.status(200).json(updatedRecipe);
   } catch (error) {
@@ -120,6 +156,7 @@ exports.updateRecipe = async (req, res) => {
     res.status(500).json({ message: 'Error updating recipe', error: error.message });
   }
 };
+
 
 // Delete a recipe by MongoDB _id
 exports.deleteRecipe = async (req, res) => {
@@ -147,4 +184,258 @@ exports.deleteRecipe = async (req, res) => {
 
 
 
+// Search Recipes by name, ingredients, or keywords
+exports.searchRecipes = async (req, res) => {
+  let { query, page = 1, limit = 10 } = req.query;
 
+  query = query.trim();
+
+  if (!query) {
+    return res.status(400).json({ message: 'Search query is required' });
+  }
+
+  try {
+    const cacheKey = `search:${query}:page:${page}`;
+    const cachedResults = await redisClient.get(cacheKey);
+
+    if (cachedResults) {
+      console.log('Serving search results from Redis Cache');
+      return res.status(200).json(JSON.parse(cachedResults));
+    }
+
+    const skip = (page - 1) * limit;
+    let recipes = [];
+
+    // First: Perform a $text search
+    recipes = await Recipe.aggregate([
+      { $match: { $text: { $search: query } } },
+      { $sort: { score: { $meta: 'textScore' } } }, // Sort by text relevance
+      { $skip: skip },
+      { $limit: parseInt(limit) },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'user',
+          foreignField: '_id',
+          as: 'user',
+        },
+      },
+      { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          Name: 1,
+          Description: 1,
+          AggregatedRating: 1,
+          ReviewCount: 1,
+          'user.AuthorName': 1,
+        },
+      },
+    ]);
+
+    // If no text search results, fallback to regex
+    if (recipes.length === 0) {
+      recipes = await Recipe.find({
+        Name: { $regex: query, $options: 'i' },
+      })
+        .skip(skip)
+        .limit(parseInt(limit))
+        .populate('user', 'AuthorName')
+        .select('Name Description AggregatedRating ReviewCount');
+    }
+
+    const totalRecipes = recipes.length; // Adjust total based on results
+
+    const response = {
+      recipes,
+      currentPage: parseInt(page, 10),
+      totalPages: Math.ceil(totalRecipes / limit),
+      totalRecipes,
+    };
+
+    await redisClient.setEx(cacheKey, 3600, JSON.stringify(response)); // Cache for 1 hour
+    res.status(200).json(response);
+  } catch (error) {
+    console.error('Error searching recipes:', error);
+    res.status(500).json({ message: 'Error searching recipes', error: error.message });
+  }
+};
+
+
+
+// Get Top 10 Popular Recipes (by ReviewCount and AggregatedRating)
+
+exports.getTopPopularRecipes = async (req, res) => {
+  const cacheKey = 'top-popular-recipes';
+
+  try {
+    // Check Redis cache first
+    const cachedData = await redisClient.get(cacheKey);
+    if (cachedData) {
+      console.log('Serving Top Recipes from Redis Cache');
+      return res.status(200).json(JSON.parse(cachedData));
+    }
+
+    // Fetch recipes from MongoDB
+    const recipes = await Recipe.aggregate([
+      {
+        $lookup: {
+          from: 'ratings',
+          localField: '_id',
+          foreignField: 'recipe',
+          as: 'ratings',
+        },
+      },
+      {
+        $addFields: {
+          AggregatedRating: {
+            $cond: [
+              { $gt: [{ $size: '$ratings' }, 0] },
+              { $avg: '$ratings.Rating' },
+              0,
+            ],
+          },
+          ReviewCount: { $size: '$ratings' },
+        },
+      },
+      { $sort: { ReviewCount: -1, AggregatedRating: -1 } },
+      { $limit: 10 },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'user',
+          foreignField: '_id',
+          as: 'user',
+        },
+      },
+      {
+        $unwind: { path: '$user', preserveNullAndEmptyArrays: true },
+      },
+      {
+        $project: {
+          Name: 1,
+          Description: 1,
+          AggregatedRating: { $round: ['$AggregatedRating', 1] },
+          ReviewCount: 1,
+          SubmittedBy: { $ifNull: ['$user.AuthorName', 'Anonymous'] },
+        },
+      },
+    ]);
+
+    // Store result in Redis cache
+    await redisClient.setEx(cacheKey, 3600, JSON.stringify(recipes));
+
+    res.status(200).json(recipes);
+  } catch (error) {
+    console.error('Error fetching top popular recipes:', error.message);
+    res.status(500).json({ message: 'Error fetching top popular recipes', error: error.message });
+  }
+};
+
+
+
+exports.getFastestRecipes = async (req, res) => {
+  const cacheKey = 'fastest-recipes';
+
+  try {
+    // Check Redis cache first
+    const cachedData = await redisClient.get(cacheKey);
+    if (cachedData) {
+      console.log('Serving Fastest Recipes from Redis Cache');
+      return res.status(200).json(JSON.parse(cachedData));
+    }
+
+    const recipes = await Recipe.aggregate([
+      {
+        $addFields: {
+          // Parse TotalTime to numeric (convert PT format and plain numeric values)
+          TotalTimeNumeric: {
+            $cond: {
+              if: { $regexMatch: { input: '$TotalTime', regex: /^PT/ } },
+              then: {
+                $let: {
+                  vars: {
+                    durationMatch: {
+                      $regexFind: { input: '$TotalTime', regex: /PT(?:(\d+)H)?(?:(\d+)M)?/ },
+                    },
+                  },
+                  in: {
+                    $add: [
+                      {
+                        $multiply: [
+                          { $toInt: { $ifNull: [{ $arrayElemAt: ['$$durationMatch.captures', 0] }, 0] } },
+                          60, // Hours to minutes
+                        ],
+                      },
+                      { $toInt: { $ifNull: [{ $arrayElemAt: ['$$durationMatch.captures', 1] }, 0] } },
+                    ],
+                  },
+                },
+              },
+              else: {
+                $cond: [{ $ne: ['$TotalTime', ''] }, { $toInt: '$TotalTime' }, 0],
+              },
+            },
+          },
+        },
+      },
+      {
+        $match: {
+          TotalTimeNumeric: { $gt: 0 }, // Filter out null, N/A, or 0 TotalTime
+        },
+      },
+      {
+        $lookup: {
+          from: 'ratings',
+          localField: '_id',
+          foreignField: 'recipe',
+          as: 'ratings',
+        },
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'user',
+          foreignField: '_id',
+          pipeline: [{ $project: { AuthorName: 1 } }],
+          as: 'user',
+        },
+      },
+      {
+        $addFields: {
+          AggregatedRating: {
+            $cond: [
+              { $gt: [{ $size: '$ratings' }, 0] },
+              { $avg: '$ratings.Rating' },
+              0,
+            ],
+          },
+          ReviewCount: { $size: '$ratings' },
+          SubmittedBy: { $arrayElemAt: ['$user.AuthorName', 0] },
+        },
+      },
+      { $sort: { TotalTimeNumeric: 1 } }, // Sort by TotalTimeNumeric ascending
+      { $limit: 10 },
+      {
+        $project: {
+          Name: 1,
+          Description: 1,
+          CookTime: 1,
+          PrepTime: 1,
+          TotalTime: 1,
+          TotalTimeNumeric: 1,
+          AggregatedRating: { $round: ['$AggregatedRating', 1] },
+          ReviewCount: 1,
+          SubmittedBy: { $ifNull: ['$SubmittedBy', 'Anonymous'] },
+        },
+      },
+    ]);
+
+    // Cache the result for 1 hour
+    await redisClient.setEx(cacheKey, 3600, JSON.stringify(recipes));
+
+    res.status(200).json(recipes);
+  } catch (error) {
+    console.error('Error fetching fastest recipes:', error.message);
+    res.status(500).json({ message: 'Error fetching fastest recipes', error: error.message });
+  }
+};

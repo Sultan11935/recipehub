@@ -12,6 +12,10 @@ const RecipeList = () => {
   const [formData, setFormData] = useState({}); // Holds the data for the recipe being edited
   const navigate = useNavigate();
 
+    // Check if the user is authenticated and has a role
+    const isAuthenticated = !!localStorage.getItem('token');
+    const role = localStorage.getItem('role');
+
   useEffect(() => {
     const fetchRecipes = async () => {
       const token = localStorage.getItem('token');
@@ -34,7 +38,7 @@ const RecipeList = () => {
     };
 
     fetchRecipes();
-  }, [navigate]);
+  }, [isAuthenticated, navigate]);
 
   const handleDelete = async (id) => {
     const confirmed = window.confirm('Are you sure you want to delete this recipe?');
@@ -158,6 +162,7 @@ const RecipeList = () => {
           <label>Instructions</label>
           <textarea name="RecipeInstructions" value={formData.RecipeInstructions || ''} onChange={handleChange}></textarea>
           </div>
+
           <div className="recipe-actions">
             <button onClick={() => handleSave(recipe._id)}>Save</button>
             <button onClick={() => setEditIndex(null)}>Cancel</button>
@@ -193,10 +198,25 @@ const RecipeList = () => {
           <p><strong>Instructions:</strong> {recipe.RecipeInstructions || '-'}</p>
         </div>
         </div>
+        <div className="rating-card">
+                <p><strong>Aggregated Rating:</strong> {recipe.AggregatedRating || 'N/A'}</p>
+                <p><strong>Review Count:</strong> {recipe.ReviewCount || 0}</p>
+                <button
+                  className="view-reviews-button"
+                  onClick={() => navigate(`/recipes/${recipe._id}/reviews`)} // Pass MongoDB `_id` correctly
+                >
+                  View Reviews
+                </button>
+
+
+
+              </div>
+              {isAuthenticated && (role === 'registered' || role === 'admin') && (
         <div className="recipe-actions">
           <button className="edit-button" onClick={() => handleEditClick(index)}>Edit</button>
           <button className="delete-button" onClick={() => handleDelete(recipe._id)}>Delete</button>
         </div>
+              )}
       </div>
     )}
   </div>

@@ -33,72 +33,95 @@ axiosInstance.interceptors.response.use(
 );
 
 // User API
-// Registers a new user
 export const registerUser = (userData) => axiosInstance.post('/users/signup', userData);
-
-// Logs in a user and returns both token and role
 export const loginUser = async (credentials) => {
   try {
     const response = await axiosInstance.post('/users/login', credentials);
-    console.log('Login API response:', response.data); // Debugging log to check the API response
-    return response.data; // This should contain both token and role if backend is set correctly
+    console.log('Login API response:', response.data);
+    return response.data;
   } catch (error) {
     console.error('Login error:', error.response ? error.response.data : error.message);
     throw error;
   }
 };
-
-// Fetches the user's profile
 export const getProfile = () => axiosInstance.get('/users/profile');
-
-// Updates the user's AuthorName in their profile
 export const updateProfile = (profileData) => axiosInstance.put('/users/profile', profileData);
-
-// Deletes the user and all associated data
 export const deleteUser = () => axiosInstance.delete('/users/profile');
+export const fetchTopActiveUsers  = () => axiosInstance.get('/users/top-active-users');
 
 
-// Admin API
-
-// Fetch paginated list of all users (Admin-only)
+// Admin API for managing users
 export const fetchAllUsers = (page = 1) => axiosInstance.get(`/admin/users?page=${page}`);
-
-// Update a user's details (Admin-only)
 export const updateUserByAdmin = (userId, userData) => axiosInstance.put(`/admin/users/${userId}`, userData);
-
-// Delete a user (Admin-only)
 export const deleteUserByAdmin = (userId) => axiosInstance.delete(`/admin/users/${userId}`);
-
 
 // Admin API for managing recipes
 export const fetchAllRecipes = (page = 1) => axiosInstance.get(`/admin/recipes?page=${page}`);
 export const updateRecipeByAdmin = (recipeId, recipeData) => axiosInstance.put(`/admin/recipes/${recipeId}`, recipeData);
 export const deleteRecipeByAdmin = (recipeId) => axiosInstance.delete(`/admin/recipes/${recipeId}`);
 
+//Admin API for managing ratings
+export const getAllRatings = (page = 1) => axiosInstance.get(`/admin/ratings?page=${page}`);
+export const updateRatingByAdmin = (ratingId, ratingData) =>
+  axiosInstance.put(`/admin/ratings/${ratingId}`, ratingData);
+export const deleteRatingByAdmin = (ratingId) =>
+  axiosInstance.delete(`/admin/ratings/${ratingId}`);
+
+//Admin API for managing report
+export const getReportsData = () => axiosInstance.get('/admin/reports');
+export const getRecipeCategoryReport  = () => axiosInstance.get('/admin/reports/categories');
 
 // Recipe API
-// Fetches all recipes created by the user
 export const getUserRecipes = () => axiosInstance.get('/recipes/user');
-
-// Fetches a recipe by its ID
 export const getRecipeById = (id) => axiosInstance.get(`/recipes/${id}`);
-
-// Creates a new recipe
 export const createRecipe = (recipeData) => axiosInstance.post('/recipes', recipeData);
-
-// Updates an existing recipe by its ID
 export const updateRecipe = (id, recipeData) => axiosInstance.put(`/recipes/${id}`, recipeData);
-
-// Deletes a recipe by its ID
 export const deleteRecipe = (id) => axiosInstance.delete(`/recipes/${id}`);
-
-
+// Public API to fetch all recipes
+export const fetchPublicRecipes = (page = 1) =>
+  axiosInstance.get(`/recipes/public/all?page=${page}`);
+// Search for recipes by name, ingredients, or keywords
+export const searchRecipes = (query, page = 1, limit = 10) =>
+  axiosInstance.get(`/recipes/search?query=${query}&page=${page}&limit=${limit}`);
+export const fetchFastestRecipes = () => axiosInstance.get(`/recipes/fastest`);
+// Fetch Top 10 Popular Recipes
+export const fetchTopPopularRecipes = () =>
+  axiosInstance.get('/recipes/top-popular');
 
 
 
 // Rating API
-// Adds a rating to a recipe
-export const createRating = (ratingData) => axiosInstance.post('/ratings', ratingData);
 
-// Fetches ratings for a specific recipe
-export const getRatingsForRecipe = (recipeId) => axiosInstance.get(`/ratings/${recipeId}`);
+// Fetches ratings for a specific recipe with pagination
+export const getRatingsForRecipe = (recipeId, page = 1) =>
+  axiosInstance.get(`/ratings/${recipeId}?page=${page}`); // Recipe `_id` is used here
+
+// Add a new rating
+export const addRating = (recipeId, ratingData) =>
+  axiosInstance.post(`/ratings/${recipeId}/add`, ratingData);
+
+// Update an existing rating
+export const updateRating = (recipeId, ratingData) =>
+  axiosInstance.put(`/ratings/${recipeId}/update`, ratingData);
+
+
+// Deletes a specific rating
+export const deleteRating = (ratingId) => axiosInstance.delete(`/ratings/${ratingId}`);
+
+
+
+
+
+
+// Fetch all ratings for the logged-in user with pagination
+export const getRatingsForLoggedInUser = async (page = 1, limit = 10) => {
+  try {
+    const response = await axiosInstance.get(`/ratings/user?page=${page}&limit=${limit}`);
+    return response.data; // Return the paginated data
+  } catch (error) {
+    console.error('Error fetching user ratings:', error.response ? error.response.data : error.message);
+    throw new Error(error.response?.data?.message || 'Failed to fetch user ratings.');
+  }
+};
+
+

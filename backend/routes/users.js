@@ -1,8 +1,7 @@
 const express = require('express');
-const { registerUser, loginUser, getProfile, updateProfile, deleteUser, getAllUsers } = require('../controllers/userController');
+const { registerUser, loginUser, getProfile, updateProfile, deleteUser, getTopActiveUsers } = require('../controllers/userController');
 const router = express.Router();
 const authenticateToken = require('../middlewares/auth'); // Import the authentication middleware
-const authorizeRole = require('../middlewares/authorizeRole'); // Import the role-based authorization middleware
 const cache = require('../middlewares/cache'); // Import cache middleware
 
 // User registration
@@ -20,6 +19,7 @@ router.put('/profile', authenticateToken, updateProfile);
 // Route for deleting user and associated data
 router.delete('/profile', authenticateToken, deleteUser);
 
+router.get('/top-active-users', cache, getTopActiveUsers);
 
 
 module.exports = router;

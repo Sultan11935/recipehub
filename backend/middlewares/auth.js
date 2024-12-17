@@ -21,6 +21,8 @@ const authenticateToken = (req, res, next) => {
     
     // Log the decoded user information for debugging
     console.log('Token Verified. User:', user);
+    console.log('Authorization Header:', req.headers['authorization']);
+    console.log('Decoded User Info:', req.user);
 
     // Attach user information, including role, to the request object for further usage
     req.user = {
