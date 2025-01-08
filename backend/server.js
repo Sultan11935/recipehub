@@ -11,13 +11,13 @@ const adminRoutes = require('./routes/adminRoutes'); // Import the admin routes
 require('dotenv').config();
 
 // Check required environment variables
-if (!process.env.MONGODB_URI || !process.env.REDIS_URI || !process.env.SESSION_SECRET) {
+if (!process.env.MONGO_URI || !process.env.REDIS_URI || !process.env.SESSION_SECRET) {
   console.error("Missing required environment variables. Please check .env file.");
   process.exit(1);
 }
 
 // MongoDB connection
-mongoose.connect(process.env.MONGODB_URI, {
+mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })

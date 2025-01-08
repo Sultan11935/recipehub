@@ -60,7 +60,7 @@ exports.getUserRecipes = async (req, res) => {
     // Fetch recipes for the logged-in user using the user ID
     const recipes = await Recipe.find({ user: req.user.userId })
       .populate('user', 'username AuthorName') // Populate only required fields
-      .select('Name Description AggregatedRating ReviewCount'); // Return essential recipe fields
+      //.select('Name Description AggregatedRating ReviewCount'); // Return essential recipe fields
 
     if (!recipes || recipes.length === 0) {
       return res.status(404).json({ message: 'No recipes found for this user' });
@@ -204,10 +204,9 @@ exports.searchRecipes = async (req, res) => {
     }
 
     const skip = (page - 1) * limit;
-    let recipes = [];
 
-    // First: Perform a $text search
-    recipes = await Recipe.aggregate([
+    // Perform a $text search
+    let recipes = await Recipe.aggregate([
       { $match: { $text: { $search: query } } },
       { $sort: { score: { $meta: 'textScore' } } }, // Sort by text relevance
       { $skip: skip },
@@ -262,8 +261,10 @@ exports.searchRecipes = async (req, res) => {
 
 
 
-// Get Top 10 Popular Recipes (by ReviewCount and AggregatedRating)
 
+
+
+// Get Top 10 Popular Recipes (by ReviewCount and AggregatedRating)
 exports.getTopPopularRecipes = async (req, res) => {
   const cacheKey = 'top-popular-recipes';
 
@@ -275,51 +276,12 @@ exports.getTopPopularRecipes = async (req, res) => {
       return res.status(200).json(JSON.parse(cachedData));
     }
 
-    // Fetch recipes from MongoDB
-    const recipes = await Recipe.aggregate([
-      {
-        $lookup: {
-          from: 'ratings',
-          localField: '_id',
-          foreignField: 'recipe',
-          as: 'ratings',
-        },
-      },
-      {
-        $addFields: {
-          AggregatedRating: {
-            $cond: [
-              { $gt: [{ $size: '$ratings' }, 0] },
-              { $avg: '$ratings.Rating' },
-              0,
-            ],
-          },
-          ReviewCount: { $size: '$ratings' },
-        },
-      },
-      { $sort: { ReviewCount: -1, AggregatedRating: -1 } },
-      { $limit: 10 },
-      {
-        $lookup: {
-          from: 'users',
-          localField: 'user',
-          foreignField: '_id',
-          as: 'user',
-        },
-      },
-      {
-        $unwind: { path: '$user', preserveNullAndEmptyArrays: true },
-      },
-      {
-        $project: {
-          Name: 1,
-          Description: 1,
-          AggregatedRating: { $round: ['$AggregatedRating', 1] },
-          ReviewCount: 1,
-          SubmittedBy: { $ifNull: ['$user.AuthorName', 'Anonymous'] },
-        },
-      },
-    ]);
+    // Fetch precomputed recipes from MongoDB
+    const recipes = await Recipe.find()
+      .sort({ ReviewCount: -1, AggregatedRating: -1 }) // Sort by precomputed fields
+      .limit(10)
+      .select('Name Description AggregatedRating ReviewCount') // Use precomputed fields
+      .populate('user', 'AuthorName');
 
     // Store result in Redis cache
     await redisClient.setEx(cacheKey, 3600, JSON.stringify(recipes));
@@ -333,6 +295,8 @@ exports.getTopPopularRecipes = async (req, res) => {
 
 
 
+
+// Get Fastest Recipes (by TotalTime)
 exports.getFastestRecipes = async (req, res) => {
   const cacheKey = 'fastest-recipes';
 
@@ -383,14 +347,8 @@ exports.getFastestRecipes = async (req, res) => {
           TotalTimeNumeric: { $gt: 0 }, // Filter out null, N/A, or 0 TotalTime
         },
       },
-      {
-        $lookup: {
-          from: 'ratings',
-          localField: '_id',
-          foreignField: 'recipe',
-          as: 'ratings',
-        },
-      },
+      { $sort: { TotalTimeNumeric: 1 } }, // Sort by TotalTimeNumeric ascending
+      { $limit: 10 },
       {
         $lookup: {
           from: 'users',
@@ -401,20 +359,8 @@ exports.getFastestRecipes = async (req, res) => {
         },
       },
       {
-        $addFields: {
-          AggregatedRating: {
-            $cond: [
-              { $gt: [{ $size: '$ratings' }, 0] },
-              { $avg: '$ratings.Rating' },
-              0,
-            ],
-          },
-          ReviewCount: { $size: '$ratings' },
-          SubmittedBy: { $arrayElemAt: ['$user.AuthorName', 0] },
-        },
+        $unwind: { path: '$user', preserveNullAndEmptyArrays: true },
       },
-      { $sort: { TotalTimeNumeric: 1 } }, // Sort by TotalTimeNumeric ascending
-      { $limit: 10 },
       {
         $project: {
           Name: 1,
@@ -423,9 +369,9 @@ exports.getFastestRecipes = async (req, res) => {
           PrepTime: 1,
           TotalTime: 1,
           TotalTimeNumeric: 1,
-          AggregatedRating: { $round: ['$AggregatedRating', 1] },
+          AggregatedRating: 1,
           ReviewCount: 1,
-          SubmittedBy: { $ifNull: ['$SubmittedBy', 'Anonymous'] },
+          SubmittedBy: { $ifNull: ['$user.AuthorName', 'Anonymous'] },
         },
       },
     ]);
