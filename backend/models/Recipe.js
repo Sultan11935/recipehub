@@ -1,36 +1,54 @@
 const mongoose = require('mongoose');
 
+const ratingSchema = new mongoose.Schema({
+  ReviewId: { type: Number, unique: true }, // Removed `unique: true` for embedded usage
+  Rating: { type: Number, min: 1, max: 5, required: true },
+  Review: { type: String },
+  username: { type: String, required: true }, // Embedded username of the reviewer
+  DateSubmitted: { type: Date, default: Date.now },
+  DateModified: { type: Date },
+});
+
+// Middleware for updating `DateModified` on modifications
+ratingSchema.pre('save', function (next) {
+  if (!this.isNew) {
+    this.DateModified = new Date();
+  }
+  next();
+});
+
 const recipeSchema = new mongoose.Schema({
   RecipeId: { type: Number, unique: true },
   Name: { type: String, required: true },
-  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }, // Reference to User model
-  CookTime: String,
-  PrepTime: String,
-  TotalTime: String,
-  DatePublished: String,
-  Description: String,
-  Images: [String],
-  RecipeCategory: String,
-  Keywords: [String],
-  RecipeIngredientQuantities: String,
-  RecipeIngredientParts: String,
-  AggregatedRating: Number,
-  ReviewCount: Number,
-  Calories: Number,
-  FatContent: Number,
-  SaturatedFatContent: Number,
-  CholesterolContent: Number,
-  SodiumContent: Number,
-  CarbohydrateContent: Number,
-  FiberContent: Number,
-  SugarContent: Number,
-  ProteinContent: Number,
-  RecipeServings: Number,
-  RecipeYield: String,
-  RecipeInstructions: String,
+  username: { type: String, required: true },
+  CookTime: { type: String },
+  PrepTime: { type: String },
+  TotalTime: { type: String },
+  DatePublished: { type: String },
+  Description: { type: String },
+  Images: [{ type: String }],
+  RecipeCategory: { type: String },
+  Keywords: [{ type: String }],
+  RecipeIngredientQuantities: { type: String },
+  RecipeIngredientParts: { type: String },
+  AggregatedRating: { type: Number },
+  ReviewCount: { type: Number },
+  Calories: { type: Number },
+  FatContent: { type: Number },
+  SaturatedFatContent: { type: Number },
+  CholesterolContent: { type: Number },
+  SodiumContent: { type: Number },
+  CarbohydrateContent: { type: Number },
+  FiberContent: { type: Number },
+  SugarContent: { type: Number },
+  ProteinContent: { type: Number },
+  RecipeServings: { type: Number },
+  RecipeYield: { type: String },
+  RecipeInstructions: { type: String },
+  Ratings: [ratingSchema], // Embedded ratings schema
 });
 
-// Middleware for auto-generating a unique RecipeId
+// Middleware for auto-generating a unique `RecipeId`
 recipeSchema.pre('save', async function (next) {
   if (!this.RecipeId) {
     const lastRecipe = await mongoose.model('Recipe').findOne().sort({ RecipeId: -1 });

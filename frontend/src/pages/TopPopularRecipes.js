@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { fetchTopPopularRecipes } from '../services/api'; // Ensure this API call is imported
+import { fetchTopPopularRecipes } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import '../App.css';
 
@@ -9,8 +9,7 @@ const TopPopularRecipes = () => {
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
-  // Check if the user is logged in
-  const isAuthenticated = !!localStorage.getItem('token');
+  const isAuthenticated = !!localStorage.getItem('token'); // Check login status
 
   const handleAddReview = (recipeId) => {
     if (!isAuthenticated) {
@@ -26,8 +25,9 @@ const TopPopularRecipes = () => {
       setLoading(true);
       try {
         const response = await fetchTopPopularRecipes();
-        console.log('API Response:', response); // Log API response
-        setRecipes(response.data); // Directly set fetched recipes
+        console.log('Fetched Popular Recipes:', response.data);
+        setRecipes(response.data || []); // Ensure fallback to an empty array
+        setError(null); // Clear any existing errors
       } catch (err) {
         console.error('Error fetching top popular recipes:', err.message);
         setError('Failed to load popular recipes. Please try again.');
@@ -44,9 +44,17 @@ const TopPopularRecipes = () => {
       <h1 className="page-title">Top 10 Popular Recipes</h1>
 
       {loading ? (
-        <p>Loading...</p>
+        <div className="loading-container">
+          <div className="spinner"></div>
+          <p>Loading popular recipes...</p>
+        </div>
       ) : error ? (
-        <p className="error-message">{error}</p>
+        <div className="error-container">
+          <p className="error-message">{error}</p>
+          <button className="retry-button" onClick={() => window.location.reload()}>
+            Retry
+          </button>
+        </div>
       ) : recipes.length > 0 ? (
         <div className="recipe-list">
           {recipes.map((recipe, index) => (
@@ -65,7 +73,7 @@ const TopPopularRecipes = () => {
                   View Recipe
                 </button>
                 <p>
-                  <strong>Submitted by:</strong> {recipe.SubmittedBy || 'Anonymous'}
+                  <strong>Submitted by:</strong> {recipe.username || 'Anonymous'}
                 </p>
               </div>
               <div className="rating-card">
@@ -94,7 +102,9 @@ const TopPopularRecipes = () => {
           ))}
         </div>
       ) : (
-        <p>No popular recipes available.</p>
+        <div className="no-data-container">
+          <p>No popular recipes available at the moment. Check back later!</p>
+        </div>
       )}
     </div>
   );

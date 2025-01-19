@@ -86,11 +86,18 @@ exports.updateRecipeByAdmin = async (req, res) => {
       return res.status(404).json({ message: 'Recipe not found' });
     }
 
+    // Invalidate cache for the updated recipe
+    await redisClient.del(`recipe:${recipeId}`);
+    await redisClient.del('top-popular-recipes');
+    const keys = await redisClient.keys('search:*');
+    if (keys.length > 0) await redisClient.del(keys);
+
     res.status(200).json({ message: 'Recipe updated successfully', recipe: updatedRecipe });
   } catch (error) {
     res.status(500).json({ message: 'Error updating recipe', error: error.message });
   }
 };
+
 
 // Delete a recipe (Admin-only)
 exports.deleteRecipeByAdmin = async (req, res) => {
@@ -103,11 +110,18 @@ exports.deleteRecipeByAdmin = async (req, res) => {
       return res.status(404).json({ message: 'Recipe not found' });
     }
 
+    // Invalidate cache for the deleted recipe
+    await redisClient.del(`recipe:${recipeId}`);
+    await redisClient.del('top-popular-recipes');
+    const keys = await redisClient.keys('search:*');
+    if (keys.length > 0) await redisClient.del(keys);
+
     res.status(200).json({ message: 'Recipe deleted successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Error deleting recipe', error: error.message });
   }
 };
+
 
 
 
@@ -119,9 +133,9 @@ exports.getAllRatings = async (req, res) => {
     const limit = 20;
     const skip = (page - 1) * limit;
 
+    // Fetch ratings from the Ratings collection
     const ratings = await Rating.find()
-      .populate('recipe', 'Name') // Populate Recipe Name
-      .populate('user', 'AuthorName') // Populate User Name
+      .sort({ DateSubmitted: -1 }) // Sort by the latest submissions
       .skip(skip)
       .limit(limit);
 
@@ -133,9 +147,11 @@ exports.getAllRatings = async (req, res) => {
       currentPage: page,
     });
   } catch (error) {
+    console.error('Error retrieving ratings:', error.message);
     res.status(500).json({ message: 'Error retrieving ratings', error: error.message });
   }
 };
+
 
 // Update a rating (Admin-only)
 exports.updateRatingByAdmin = async (req, res) => {
@@ -143,6 +159,7 @@ exports.updateRatingByAdmin = async (req, res) => {
   const updatedData = req.body;
 
   try {
+    // Update the Ratings collection
     const updatedRating = await Rating.findByIdAndUpdate(
       ratingId,
       updatedData,
@@ -153,22 +170,43 @@ exports.updateRatingByAdmin = async (req, res) => {
       return res.status(404).json({ message: 'Rating not found' });
     }
 
+    // Update the embedded rating in the Recipe model
+    const recipe = await Recipe.findOneAndUpdate(
+      { "Ratings.ReviewId": updatedRating.ReviewId },
+      { $set: { "Ratings.$": updatedRating } },
+      { new: true }
+    );
+
+    if (recipe) {
+      // Invalidate cache for the updated recipe
+      await redisClient.del(`recipe:${recipe._id}`);
+      await redisClient.del('top-popular-recipes');
+    }
+
     res.status(200).json({ message: 'Rating updated successfully', rating: updatedRating });
   } catch (error) {
     res.status(500).json({ message: 'Error updating rating', error: error.message });
   }
 };
 
+
 // Delete a rating (Admin-only)
 exports.deleteRatingByAdmin = async (req, res) => {
   const { ratingId } = req.params;
 
   try {
-    const deletedRating = await Rating.findByIdAndDelete(ratingId);
-
-    if (!deletedRating) {
+    // Find the rating to get the associated recipe ID
+    const rating = await Rating.findByIdAndDelete(ratingId);
+    if (!rating) {
       return res.status(404).json({ message: 'Rating not found' });
     }
+
+    // Remove the rating from the embedded Ratings array in the Recipe model
+    await Recipe.findOneAndUpdate(
+      { "Ratings.ReviewId": rating.ReviewId },
+      { $pull: { Ratings: { ReviewId: rating.ReviewId } } },
+      { new: true }
+    );
 
     res.status(200).json({ message: 'Rating deleted successfully' });
   } catch (error) {

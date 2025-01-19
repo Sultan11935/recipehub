@@ -16,15 +16,15 @@ router.post('/:recipeId/add', authenticateToken, addRating);
 // Update an existing rating
 router.put('/:recipeId/update', authenticateToken, updateRating);
 
-// Delete a rating
-router.delete('/:id', authenticateToken, deleteRating);
+
 
 router.get('/user', authenticateToken, cache, getRatingsForLoggedInUser);
 
 // Get ratings for a specific recipe
 router.get('/:recipeId', getRatingsForRecipe);
 
-
+// Delete a rating
+router.delete('/:recipeId/:reviewId', authenticateToken, deleteRating);
 
 
 

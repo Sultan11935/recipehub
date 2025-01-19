@@ -27,6 +27,7 @@ const authenticateToken = (req, res, next) => {
     // Attach user information, including role, to the request object for further usage
     req.user = {
       userId: user.userId,
+      username: user.username,
       AuthorId: user.AuthorId,
       AuthorName: user.AuthorName,
       role: user.role // Add role to request

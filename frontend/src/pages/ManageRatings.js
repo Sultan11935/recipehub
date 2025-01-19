@@ -9,6 +9,7 @@ const ManageRatings = () => {
   const [loading, setLoading] = useState(true);
   const [editingRatingId, setEditingRatingId] = useState(null);
   const [formData, setFormData] = useState({});
+  const itemsPerPage = 20; // Adjust based on the number of ratings displayed per page
 
   useEffect(() => {
     loadRatings(page);
@@ -18,10 +19,11 @@ const ManageRatings = () => {
     setLoading(true);
     try {
       const response = await getAllRatings(page);
-      setRatings(response.data.ratings);
-      setTotalPages(response.data.totalPages);
+      setRatings(response.data.ratings || []);
+      setTotalPages(response.data.totalPages || 1);
     } catch (error) {
-      console.error('Error fetching ratings:', error);
+      console.error('Error fetching ratings:', error.message);
+      alert('Failed to load ratings. Please try again later.');
     } finally {
       setLoading(false);
     }
@@ -38,13 +40,19 @@ const ManageRatings = () => {
   };
 
   const handleSave = async (ratingId) => {
+    if (formData.Rating < 1 || formData.Rating > 5) {
+      alert('Rating must be between 1 and 5.');
+      return;
+    }
+
     try {
       await updateRatingByAdmin(ratingId, formData);
       alert('Rating updated successfully');
       setEditingRatingId(null);
       loadRatings(page);
     } catch (error) {
-      console.error('Error updating rating:', error);
+      console.error('Error updating rating:', error.message);
+      alert('Failed to update rating. Please try again.');
     }
   };
 
@@ -57,7 +65,8 @@ const ManageRatings = () => {
       alert('Rating deleted successfully');
       loadRatings(page);
     } catch (error) {
-      console.error('Error deleting rating:', error);
+      console.error('Error deleting rating:', error.message);
+      alert('Failed to delete rating. Please try again.');
     }
   };
 
@@ -66,18 +75,18 @@ const ManageRatings = () => {
       <h2 className="page-title">Manage Reviews</h2>
       {loading ? (
         <p>Loading ratings...</p>
-      ) : (
+      ) : ratings.length > 0 ? (
         <div className="ratings-grid">
           {ratings.map((rating, index) => (
             <div key={rating._id} className="rating-card">
               {editingRatingId === rating._id ? (
                 <form className="edit-form">
                   <label>
-                    Recipe Name:
+                    ID:
                     <input
                       type="text"
-                      name="recipeName"
-                      value={rating.recipe?.Name || 'N/A'}
+                      name="ReviewId"
+                      value={rating.ReviewId || 'N/A'}
                       disabled
                     />
                   </label>
@@ -85,8 +94,8 @@ const ManageRatings = () => {
                     User Name:
                     <input
                       type="text"
-                      name="userName"
-                      value={rating.user?.AuthorName || 'N/A'}
+                      name="username"
+                      value={rating.username || 'N/A'}
                       disabled
                     />
                   </label>
@@ -97,6 +106,8 @@ const ManageRatings = () => {
                       name="Rating"
                       value={formData.Rating || ''}
                       onChange={handleInputChange}
+                      min="1"
+                      max="5"
                     />
                   </label>
                   <label>
@@ -127,10 +138,10 @@ const ManageRatings = () => {
               ) : (
                 <>
                   <h3>
-                    {index + 1}. {rating.recipe?.Name || 'N/A'}
+                    {(page - 1) * itemsPerPage + index + 1}. ID: {rating.ReviewId || 'N/A'}
                   </h3>
                   <p>
-                    <strong>User:</strong> {rating.user?.AuthorName || 'N/A'}
+                    <strong>User:</strong> {rating.username || 'Anonymous'}
                   </p>
                   <p>
                     <strong>Rating:</strong> {rating.Rating || '-'}
@@ -157,6 +168,8 @@ const ManageRatings = () => {
             </div>
           ))}
         </div>
+      ) : (
+        <p>No ratings available.</p>
       )}
       <div className="pagination-container">
         <button

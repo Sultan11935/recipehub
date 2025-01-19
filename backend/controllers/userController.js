@@ -54,6 +54,7 @@ exports.loginUser = async (req, res) => {
     const token = jwt.sign(
       { 
         userId: user._id, 
+        username: user.username,
         AuthorId: user.AuthorId, 
         AuthorName: user.AuthorName, 
         role: user.role // Include role in the token payload
@@ -98,25 +99,40 @@ exports.getProfile = async (req, res) => {
 
 exports.deleteUser = async (req, res) => {
   const userId = req.user.userId;
+  const username = req.user.username;
 
   try {
-    // Delete all recipes associated with the user
-    await Recipe.deleteMany({ AuthorId: req.user.AuthorId });
-    const deletedUser = await User.findByIdAndDelete(userId);
+    // Step 1: Delete all recipes created by the user
+    await Recipe.deleteMany({ username });
 
+    // Step 2: Remove user's ratings from other recipes' embedded Ratings array
+    await Recipe.updateMany(
+      { "Ratings.username": username }, // Find recipes with ratings by this user
+      { $pull: { Ratings: { username } } } // Remove those ratings
+    );
+
+    // Step 3: Delete standalone ratings by the user from the Rating collection
+    await Rating.deleteMany({ username });
+
+    // Step 4: Delete the user
+    const deletedUser = await User.findByIdAndDelete(userId);
     if (!deletedUser) {
       return res.status(404).json({ message: 'User not found' });
     }
 
     // Invalidate cache for user and recipes
     await redisClient.del(`user:${userId}`);
-    await redisClient.del(`recipes:${req.user.AuthorId}`);
+    await redisClient.del(`recipes:${username}`);
+    await redisClient.del('top-active-users');
 
-    res.status(200).json({ message: 'User and associated recipes deleted successfully' });
+    res.status(200).json({ message: 'User and all associated data deleted successfully' });
   } catch (error) {
+    console.error('Error deleting user and associated data:', error.message);
     res.status(500).json({ message: 'Error deleting user', error: error.message });
   }
 };
+
+
 
 exports.updateProfile = async (req, res) => {
   const userId = req.user.userId;
@@ -133,7 +149,11 @@ exports.updateProfile = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    await Recipe.updateMany({ AuthorId: updatedUser.AuthorId }, { AuthorName: updatedUser.AuthorName });
+    // Update embedded AuthorName in all recipes by this username
+    await Recipe.updateMany(
+      { username: updatedUser.username },
+      { username: updatedUser.username }
+    );
 
     // Invalidate Redis cache for user and recipes
     await redisClient.del(`user:${userId}`);
@@ -149,24 +169,25 @@ exports.updateProfile = async (req, res) => {
 };
 
 
+
 // Fetch recipes by AuthorId with caching
 exports.getUserRecipes = async (req, res) => {
-  const authorId = req.user.AuthorId;
+  const username = req.user.username;
 
   try {
     // Check Redis cache for recipes
-    const cachedRecipes = await redisClient.get(`recipes:${authorId}`);
+    const cachedRecipes = await redisClient.get(`recipes:${username}`);
     if (cachedRecipes) {
       return res.status(200).json(JSON.parse(cachedRecipes));
     }
 
-    const recipes = await Recipe.find({ AuthorId: authorId });
+    const recipes = await Recipe.find({ username });
     if (!recipes.length) {
-      return res.status(404).json({ message: 'No recipes found for this author' });
+      return res.status(404).json({ message: 'No recipes found for this user' });
     }
 
     // Cache the recipes for faster future access
-    await redisClient.setEx(`recipes:${authorId}`, 3600, JSON.stringify(recipes));
+    await redisClient.setEx(`recipes:${username}`, 3600, JSON.stringify(recipes));
 
     res.status(200).json(recipes);
   } catch (error) {
@@ -174,9 +195,10 @@ exports.getUserRecipes = async (req, res) => {
   }
 };
 
+
 // Get Top 10 Active Users (by most reviews) with Redis Caching
 exports.getTopActiveUsers = async (req, res) => {
-  const cacheKey = 'top-active-users'; // Cache key for Redis
+  const cacheKey = 'top-active-users';
 
   try {
     // Check if data exists in Redis cache
@@ -186,40 +208,28 @@ exports.getTopActiveUsers = async (req, res) => {
       return res.status(200).json(JSON.parse(cachedData));
     }
 
-    // Aggregate query to calculate top 10 active users
-    const topUsers = await Rating.aggregate([
+    // Aggregate query to calculate top 10 active users by username
+    const topUsers = await Recipe.aggregate([
+      { $unwind: '$Ratings' }, // Unwind the Ratings array
       {
         $group: {
-          _id: "$user", // Group by user ID
+          _id: '$Ratings.username', // Group by username
           reviewCount: { $sum: 1 }, // Count the number of reviews
         },
       },
       { $sort: { reviewCount: -1 } }, // Sort by review count descending
       { $limit: 10 }, // Limit to top 10 users
       {
-        $lookup: {
-          from: "users", // Join with 'users' collection
-          localField: "_id",
-          foreignField: "_id",
-          as: "userDetails",
-        },
-      },
-      { $unwind: "$userDetails" }, // Flatten userDetails array
-      {
         $project: {
-          _id: 0,
-          userId: "$userDetails._id",
-          AuthorName: "$userDetails.AuthorName",
-          reviewCount: 1,
+          username: '$_id', // Include username
+          reviewCount: 1, // Include review count
         },
       },
     ]);
 
-    // Cache the result in Redis for 1 hour (3600 seconds)
+    // Cache the result in Redis for 1 hour
     await redisClient.setEx(cacheKey, 3600, JSON.stringify(topUsers));
-    console.log('Serving Top Active Users from MongoDB and Caching in Redis');
 
-    // Send response
     res.status(200).json(topUsers);
   } catch (error) {
     console.error('Error fetching top active users:', error.message);

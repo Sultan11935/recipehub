@@ -15,7 +15,6 @@ const SearchRecipes = () => {
   const isAuthenticated = !!localStorage.getItem('token');
   const recipesPerPage = 10;
 
-  // Memoized search function
   const handleSearch = useCallback(
     async (newPage = 1) => {
       const cleanQuery = query.trim();
@@ -29,24 +28,23 @@ const SearchRecipes = () => {
       try {
         const response = await searchRecipes(cleanQuery, newPage, recipesPerPage);
 
-        // Prioritize exact matches and sort
+        // Prioritize exact matches and format results
         const sortedResults = response.data.recipes.sort((a, b) => {
           if (a.Name.toLowerCase() === cleanQuery.toLowerCase()) return -1;
           if (b.Name.toLowerCase() === cleanQuery.toLowerCase()) return 1;
           return 0;
         });
 
-        // Add fallback for Submitted By and format results
         const formattedResults = sortedResults.map((recipe) => ({
           ...recipe,
-          SubmittedBy: recipe.user?.AuthorName || 'Anonymous', // Ensure fallback
+          SubmittedBy: recipe.SubmittedBy || 'Anonymous',
         }));
 
         setResults(formattedResults);
-        setCurrentPage(response.data.currentPage);
-        setTotalPages(response.data.totalPages);
+        setCurrentPage(response.data.currentPage || 1);
+        setTotalPages(response.data.totalPages || 1);
 
-        // Save state to sessionStorage
+        // Save to sessionStorage
         sessionStorage.setItem('searchQuery', cleanQuery);
         sessionStorage.setItem('searchResults', JSON.stringify(formattedResults));
         sessionStorage.setItem('currentPage', response.data.currentPage);
@@ -61,6 +59,14 @@ const SearchRecipes = () => {
     },
     [query, recipesPerPage]
   );
+
+  const handleClearSearch = () => {
+    setQuery('');
+    setResults([]);
+    setCurrentPage(1);
+    setTotalPages(1);
+    sessionStorage.clear(); // Clear session storage for search-related state
+  };
 
   const handlePageChange = (newPage) => {
     if (newPage > 0 && newPage <= totalPages) {
@@ -92,9 +98,12 @@ const SearchRecipes = () => {
           placeholder="Search by name, ingredient, or keyword..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSearch(1)} // Search on Enter
+          onKeyDown={(e) => e.key === 'Enter' && handleSearch(1)}
         />
         <button onClick={() => handleSearch(1)}>Search</button>
+        <button onClick={handleClearSearch} className="clear-button">
+          Clear
+        </button>
       </div>
 
       {loading && <p>Loading...</p>}
@@ -115,7 +124,7 @@ const SearchRecipes = () => {
                   View Recipe
                 </button>
                 <p>
-                  <strong>Submitted by:</strong> {recipe.SubmittedBy}
+                  <strong>Submitted by:</strong> {recipe.username}
                 </p>
               </div>
               <div className="rating-card">

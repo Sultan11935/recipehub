@@ -47,6 +47,9 @@ const RecipeReviews = () => {
     }
   };
 
+  const truncateText = (text, length = 100) =>
+    text.length > length ? `${text.slice(0, length)}...` : text;
+
   return (
     <div className="reviews-page">
       <button onClick={() => navigate(-1)} className="back-button">Back</button>
@@ -63,13 +66,18 @@ const RecipeReviews = () => {
               {reviews.map((review) => (
                 <div key={review._id} className="review-card">
                   <div className="review-header">
-                    <h3 className="review-user">{review.user?.AuthorName || 'Anonymous'}</h3>
+                    <h3 className="review-user">{review.username || 'Anonymous'}</h3>
                     <span className="review-rating">⭐ {review.Rating}/5</span>
                   </div>
-                  <p className="review-text">{review.Review || 'No text provided'}</p>
+                  <p
+                    className="review-text"
+                    title={review.Review || 'No text provided'}
+                  >
+                    {truncateText(review.Review || 'No text provided')}
+                  </p>
                   <div className="review-footer">
                     <small className="review-date">
-                      Submitted: {new Date(review.DateSubmitted).toLocaleString()}
+                      Submitted: {new Date(review.DateSubmitted).toLocaleDateString()}
                     </small>
                   </div>
                 </div>

@@ -95,10 +95,7 @@ const ManageRecipes = () => {
               </h3>
 
               <p>
-                <strong>Author Name:</strong> {recipe.user?.AuthorName || 'N/A'}
-              </p>
-              <p>
-                <strong>Author ID:</strong> {recipe.user?.AuthorId || 'N/A'}
+                <strong>Author Name:</strong> {recipe.username || 'N/A'}
               </p>
               <p>
                 <strong>Aggregated Rating:</strong> {recipe.AggregatedRating || 'N/A'}

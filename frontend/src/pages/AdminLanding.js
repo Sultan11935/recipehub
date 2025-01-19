@@ -117,7 +117,6 @@ const AdminLanding = () => {
         </div>
       </div>
 
-      
       {/* Explore Recipes Section */}
       <h2 className="explore-title">Explore Recipes</h2>
 
@@ -146,7 +145,7 @@ const AdminLanding = () => {
                   View More
                 </button>
                 <p>
-                  <strong>Submitted by:</strong> {recipe.user?.AuthorName || 'Anonymous'}
+                  <strong>Submitted by:</strong> {recipe.username || 'Anonymous'}
                 </p>
               </div>
 

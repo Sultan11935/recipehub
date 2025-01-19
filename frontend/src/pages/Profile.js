@@ -1,4 +1,3 @@
-// src/pages/Profile.js
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getProfile, updateProfile, deleteUser } from '../services/api';
@@ -26,8 +25,7 @@ const Profile = () => {
       } catch (error) {
         console.error('Failed to load profile:', error);
         alert('Session expired or unauthorized access. Please log in again.');
-        localStorage.removeItem('token');
-        localStorage.removeItem('role');
+        localStorage.clear(); // Clear all localStorage items
         navigate('/login');
       }
     };
@@ -36,6 +34,11 @@ const Profile = () => {
   }, [navigate]);
 
   const handleUpdate = async () => {
+    if (!authorName.trim()) {
+      alert('Author Name cannot be empty.');
+      return;
+    }
+
     try {
       await updateProfile({ AuthorName: authorName });
       alert('Profile updated successfully. Associated recipes will reflect the updated author name.');
@@ -43,11 +46,7 @@ const Profile = () => {
       setIsEditing(false);
     } catch (error) {
       console.error('Failed to update profile:', error);
-      if (error.response && error.response.data && error.response.data.message) {
-        alert(`Failed to update profile: ${error.response.data.message}`);
-      } else {
-        alert('Failed to update profile: An unexpected error occurred');
-      }
+      alert('Failed to update profile. Please try again.');
     }
   };
 
@@ -59,13 +58,12 @@ const Profile = () => {
 
     try {
       await deleteUser();
-      alert('Account and all associated recipes deleted successfully');
-      localStorage.removeItem('token');
-      localStorage.removeItem('role');
+      alert('Account and all associated recipes deleted successfully.');
+      localStorage.clear(); // Clear all localStorage items
       navigate('/register');
     } catch (error) {
       console.error('Failed to delete account:', error);
-      alert('Failed to delete account');
+      alert('Failed to delete account. Please try again.');
     }
   };
 
@@ -74,9 +72,9 @@ const Profile = () => {
       <h1 className="profile-title">Profile</h1>
       <div className="profile-card">
         <div className="profile-info">
-          <p><strong>Username:</strong> {user.username}</p>
-          <p><strong>Email:</strong> {user.email}</p>
-          <p><strong>Author ID:</strong> {user.AuthorId}</p>
+          <p><strong>Username:</strong> {user.username || 'N/A'}</p>
+          <p><strong>Email:</strong> {user.email || 'N/A'}</p>
+          <p><strong>Author ID:</strong> {user.AuthorId || 'N/A'}</p>
         </div>
 
         {isEditing ? (
@@ -87,6 +85,7 @@ const Profile = () => {
               value={authorName}
               onChange={(e) => setAuthorName(e.target.value)}
               className="profile-input"
+              placeholder="Enter your author name"
             />
             <div className="profile-actions">
               <button onClick={handleUpdate} className="save-button">

@@ -9,7 +9,7 @@ const parseDuration = (duration, type) => {
     return type === 'PrepTime' ? 'Not Needed' : 'Not Needed';
   }
 
-  // Check if it's already numeric
+  // Parse numeric duration
   if (!isNaN(duration)) {
     const totalMinutes = parseInt(duration, 10);
     const hours = Math.floor(totalMinutes / 60);
@@ -19,27 +19,22 @@ const parseDuration = (duration, type) => {
     if (hours > 0) parts.push(`${hours} ${hours > 1 ? 'hours' : 'hour'}`);
     if (minutes > 0) parts.push(`${minutes} ${minutes > 1 ? 'minutes' : 'minute'}`);
 
-    return parts.length > 0 ? parts.join(' ') : type === 'PrepTime' ? 'Not Needed' : 'Not Needed';
+    return parts.join(' ') || 'Not Needed';
   }
 
-  // Parse ISO 8601 Duration (PT1H30M)
+  // Parse ISO 8601 Duration (e.g., PT1H30M)
   const regex = /P(?:T(?:(\d+)H)?(?:(\d+)M)?)?/;
   const matches = duration.match(regex);
 
-  if (!matches) {
-    return type === 'PrepTime' ? 'Not Needed' : 'Not Needed';
-  }
-
-  const hours = matches[1] ? parseInt(matches[1], 10) : 0;
-  const minutes = matches[2] ? parseInt(matches[2], 10) : 0;
+  const hours = matches?.[1] ? parseInt(matches[1], 10) : 0;
+  const minutes = matches?.[2] ? parseInt(matches[2], 10) : 0;
 
   const parts = [];
   if (hours > 0) parts.push(`${hours} ${hours > 1 ? 'hours' : 'hour'}`);
   if (minutes > 0) parts.push(`${minutes} ${minutes > 1 ? 'minutes' : 'minute'}`);
 
-  return parts.length > 0 ? parts.join(' ') : type === 'PrepTime' ? 'Not Needed' : 'Not Needed';
+  return parts.join(' ') || 'Not Needed';
 };
-
 
 const FastestRecipes = () => {
   const [recipes, setRecipes] = useState([]);
@@ -63,24 +58,23 @@ const FastestRecipes = () => {
       setLoading(true);
       try {
         const response = await fetchFastestRecipes();
-  
-        // Filter out recipes with invalid TotalTime
+
+        // Filter valid recipes based on TotalTime
         const validRecipes = response.data.filter(
-          (recipe) => recipe.TotalTimeNumeric > 0 && recipe.TotalTime
+          (recipe) => recipe.TotalTimeNumeric > 0 || recipe.TotalTime
         );
-  
+
         setRecipes(validRecipes);
       } catch (err) {
         console.error('Error fetching fastest recipes:', err.message);
-        setError('Failed to load fastest recipes.');
+        setError('Failed to load fastest recipes. Please try again later.');
       } finally {
         setLoading(false);
       }
     };
-  
+
     loadFastestRecipes();
   }, []);
-  
 
   return (
     <div className="fastest-recipes-container">
@@ -108,7 +102,7 @@ const FastestRecipes = () => {
                   View Recipe
                 </button>
                 <p>
-                  <strong>Submitted by:</strong> {recipe.SubmittedBy || 'Anonymous'}
+                  <strong>Submitted by:</strong> {recipe.username || 'Anonymous'}
                 </p>
               </div>
               <div className="rating-card">

@@ -1,4 +1,3 @@
-// src/pages/ManageUsers.js
 import React, { useEffect, useState } from 'react';
 import { fetchAllUsers, updateUserByAdmin, deleteUserByAdmin } from '../services/api';
 import '../App.css';
@@ -9,7 +8,7 @@ const ManageUsers = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [editingUserId, setEditingUserId] = useState(null);
-  const [tempAuthorName, setTempAuthorName] = useState("");
+  const [tempAuthorName, setTempAuthorName] = useState('');
 
   useEffect(() => {
     loadUsers(page);
@@ -19,11 +18,12 @@ const ManageUsers = () => {
     setLoading(true);
     try {
       const response = await fetchAllUsers(page);
-      setUsers(response.data.users);
-      setTotalPages(response.data.totalPages);
-      setLoading(false);
+      setUsers(response.data.users || []);
+      setTotalPages(response.data.totalPages || 1);
     } catch (error) {
-      console.error('Error fetching users:', error);
+      console.error('Error fetching users:', error.message);
+      alert('Failed to load users. Please try again later.');
+    } finally {
       setLoading(false);
     }
   };
@@ -34,10 +34,11 @@ const ManageUsers = () => {
 
     try {
       await updateUserByAdmin(userId, { role: newRole });
-      alert('User role updated successfully');
+      alert('User role updated successfully.');
       loadUsers(page);
     } catch (error) {
-      console.error('Error updating user role:', error);
+      console.error('Error updating user role:', error.message);
+      alert('Failed to update user role. Please try again.');
     }
   };
 
@@ -52,24 +53,28 @@ const ManageUsers = () => {
 
     try {
       await updateUserByAdmin(userId, { AuthorName: tempAuthorName });
-      alert('Author name updated successfully');
+      alert('Author name updated successfully.');
       setEditingUserId(null);
       loadUsers(page);
     } catch (error) {
-      console.error('Error updating author name:', error);
+      console.error('Error updating author name:', error.message);
+      alert('Failed to update author name. Please try again.');
     }
   };
 
   const handleDeleteUser = async (userId) => {
-    const confirmed = window.confirm('Are you sure you want to delete this user? This action cannot be undone.');
+    const confirmed = window.confirm(
+      'Are you sure you want to delete this user? This will also delete their recipes and reviews. This action cannot be undone.'
+    );
     if (!confirmed) return;
 
     try {
       await deleteUserByAdmin(userId);
-      alert('User deleted successfully');
+      alert('User and all associated data deleted successfully.');
       loadUsers(page);
     } catch (error) {
-      console.error('Error deleting user:', error);
+      console.error('Error deleting user:', error.message);
+      alert('Failed to delete user. Please try again.');
     }
   };
 
@@ -78,7 +83,7 @@ const ManageUsers = () => {
       <h2 className="manage-users-title">Manage Users</h2>
       {loading ? (
         <p>Loading users...</p>
-      ) : (
+      ) : users.length > 0 ? (
         <table className="users-table">
           <thead>
             <tr>
@@ -94,8 +99,8 @@ const ManageUsers = () => {
             {users.map((user, index) => (
               <tr key={user._id}>
                 <td>{(page - 1) * 20 + index + 1}</td>
-                <td>{user.username}</td>
-                <td>{user.email}</td>
+                <td>{user.username || 'N/A'}</td>
+                <td>{user.email || 'N/A'}</td>
                 <td className="author-name-cell">
                   {editingUserId === user._id ? (
                     <div className="inline-form">
@@ -120,7 +125,7 @@ const ManageUsers = () => {
                     </div>
                   ) : (
                     <div className="inline-display">
-                      {user.AuthorName}
+                      {user.AuthorName || 'Anonymous'}
                       <button
                         onClick={() => handleEditAuthorName(user._id, user.AuthorName)}
                         className="edit-button"
@@ -132,7 +137,7 @@ const ManageUsers = () => {
                 </td>
                 <td>
                   <select
-                    value={user.role}
+                    value={user.role || 'registered'}
                     onChange={(e) => handleRoleChange(user._id, e.target.value)}
                     className="role-select"
                   >
@@ -152,13 +157,25 @@ const ManageUsers = () => {
             ))}
           </tbody>
         </table>
+      ) : (
+        <p>No users found.</p>
       )}
       <div className="pagination-container">
-        <button onClick={() => setPage(page - 1)} disabled={page === 1} className="pagination-button">
+        <button
+          onClick={() => setPage(page - 1)}
+          disabled={page === 1}
+          className="pagination-button"
+        >
           Previous
         </button>
-        <span>Page {page} of {totalPages}</span>
-        <button onClick={() => setPage(page + 1)} disabled={page === totalPages} className="pagination-button">
+        <span>
+          Page {page} of {totalPages}
+        </span>
+        <button
+          onClick={() => setPage(page + 1)}
+          disabled={page === totalPages}
+          className="pagination-button"
+        >
           Next
         </button>
       </div>

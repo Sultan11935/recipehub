@@ -1,7 +1,87 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getRatingsForLoggedInUser, updateRating, deleteRating } from '../services/api'; // Import deleteRating API
+import { getRatingsForLoggedInUser, updateRating, deleteRating } from '../services/api';
 import '../App.css';
+
+// Reusable ReviewCard Component
+const ReviewCard = ({
+  rating,
+  index,
+  page,
+  itemsPerPage,
+  editMode,
+  editReviewData,
+  handleEditClick,
+  handleStarClick,
+  handleChange,
+  handleSave,
+  handleDelete,
+  navigate,
+  setEditMode,
+}) => {
+  const adjustedIndex = index + 1 + (page - 1) * itemsPerPage; // Adjust index based on current page
+
+  return (
+    <div key={rating._id} className="review-card">
+      {editMode === rating._id ? (
+        <div className="edit-review-container">
+          <h3>Edit Review</h3>
+          <div className="star-rating">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <span
+                key={star}
+                className={`star ${star <= editReviewData.Rating ? 'filled' : ''}`}
+                onClick={() => handleStarClick(star)}
+              >
+                ★
+              </span>
+            ))}
+          </div>
+          <textarea
+            name="Review"
+            value={editReviewData.Review}
+            onChange={handleChange}
+            placeholder="Update your review here..."
+            className="review-textarea"
+          ></textarea>
+          <div className="button-container">
+            <button onClick={() => handleSave(rating._id, rating.recipeId)}>Save</button>
+            <button onClick={() => setEditMode(null)}>Cancel</button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <h3>
+            {adjustedIndex}. {rating.recipeName || 'Unknown Recipe'}
+          </h3>
+          <p>
+            <strong>Rating:</strong> {rating.Rating}
+          </p>
+          <p>
+            <strong>Review:</strong> {rating.Review || 'No review provided'}
+          </p>
+          <div className="review-actions">
+            <button
+              className="view-recipe-button"
+              onClick={() => navigate(`/recipes/${rating.recipeId}`)}
+            >
+              View Recipe
+            </button>
+            <button className="edit-review-button" onClick={() => handleEditClick(rating)}>
+              Edit
+            </button>
+            <button
+              className="delete-review-button"
+              onClick={() => handleDelete(rating.ReviewId, rating.recipeId)} // Pass both IDs correctly
+            >
+              Delete
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
 
 const UserReviews = () => {
   const [ratings, setRatings] = useState([]);
@@ -10,32 +90,31 @@ const UserReviews = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const [editMode, setEditMode] = useState(null); // Track which review is in edit mode
-  const [editReviewData, setEditReviewData] = useState({ Rating: 0, Review: '' }); // Store edit data
+  const [editMode, setEditMode] = useState(null);
+  const [editReviewData, setEditReviewData] = useState({ Rating: 0, Review: '' });
   const navigate = useNavigate();
 
+  const itemsPerPage = 10; // Number of reviews per page
+
   useEffect(() => {
-    loadRatings(page);
+    const loadRatings = async () => {
+      setLoading(true);
+      try {
+        const response = await getRatingsForLoggedInUser(page);
+        setRatings(response.ratings); // Ratings include recipeName from backend
+        setTotalPages(response.totalPages);
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching ratings:', err.message);
+        setError('Failed to load ratings.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadRatings();
   }, [page]);
 
-  // Fetch user ratings
-  const loadRatings = async (page) => {
-    setLoading(true);
-    try {
-      const response = await getRatingsForLoggedInUser(page);
-      const validRatings = response.ratings.filter((rating) => rating.recipe !== null);
-      setRatings(validRatings);
-      setTotalPages(response.totalPages);
-      setError(null);
-    } catch (err) {
-      console.error('Error fetching ratings:', err.message);
-      setError('Failed to load ratings.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Enter edit mode for a specific review
   const handleEditClick = (rating) => {
     setEditMode(rating._id);
     setEditReviewData({
@@ -44,40 +123,50 @@ const UserReviews = () => {
     });
   };
 
-  // Handle star rating click
   const handleStarClick = (rating) => {
-    setEditReviewData((prevData) => ({ ...prevData, Rating: rating }));
+    setEditReviewData((prev) => ({ ...prev, Rating: rating }));
   };
 
-  // Handle input change
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setEditReviewData((prevData) => ({ ...prevData, [name]: value }));
+    setEditReviewData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Save the updated review
   const handleSave = async (ratingId, recipeId) => {
     try {
       await updateRating(recipeId, editReviewData);
       alert('Review updated successfully!');
       setEditMode(null);
-      loadRatings(page); // Reload reviews
+      setRatings((prev) =>
+        prev.map((rating) =>
+          rating._id === ratingId ? { ...rating, ...editReviewData } : rating
+        )
+      );
     } catch (err) {
       console.error('Error updating review:', err.message);
       alert('Failed to update review. Please try again.');
     }
   };
 
-  // Delete a review
-  const handleDelete = async (ratingId) => {
+  const handleDelete = async (ratingId, recipeId) => {
+    console.log('Attempting to delete rating with ReviewId:', ratingId, 'for RecipeId:', recipeId);
+
     if (!window.confirm('Are you sure you want to delete this review?')) return;
+
     try {
-      await deleteRating(ratingId); // Call deleteRating API
+      // Ensure the correct API call with both recipeId and reviewId
+      await deleteRating(recipeId, ratingId);
       alert('Review deleted successfully!');
-      loadRatings(page); // Reload reviews
+      setRatings((prev) => prev.filter((rating) => rating.ReviewId !== ratingId));
     } catch (err) {
       console.error('Error deleting review:', err.message);
       alert('Failed to delete review. Please try again.');
+    }
+  };
+
+  const handlePageChange = (newPage) => {
+    if (newPage > 0 && newPage <= totalPages) {
+      setPage(newPage);
     }
   };
 
@@ -87,75 +176,31 @@ const UserReviews = () => {
       {loading ? (
         <p>Loading reviews...</p>
       ) : error ? (
-        <p className="error-message">{error}</p>
+        <div className="error-container">
+          <p className="error-message">{error}</p>
+          <button onClick={() => window.location.reload()} className="retry-button">
+            Retry
+          </button>
+        </div>
       ) : ratings.length > 0 ? (
         <div className="reviews-list">
           {ratings.map((rating, index) => (
-            <div key={rating._id} className="review-card">
-              {editMode === rating._id ? (
-                // Inline Edit Mode
-                <div className="edit-review-container">
-                  <h3>Edit Review</h3>
-                  <div className="star-rating">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <span
-                        key={star}
-                        className={`star ${star <= editReviewData.Rating ? 'filled' : ''}`}
-                        onClick={() => handleStarClick(star)}
-                      >
-                        ★
-                      </span>
-                    ))}
-                  </div>
-                  <textarea
-                    name="Review"
-                    value={editReviewData.Review}
-                    onChange={handleChange}
-                    placeholder="Update your review here..."
-                    className="review-textarea"
-                  ></textarea>
-                  <div className="button-container">
-                    <button onClick={() => handleSave(rating._id, rating.recipe._id)}>
-                      Save
-                    </button>
-                    <button onClick={() => setEditMode(null)}>Cancel</button>
-                  </div>
-                </div>
-              ) : (
-                // Display Mode
-                <>
-                  <h3>
-                    {index + 1}. {rating.recipe?.Name || 'Unknown Recipe'}
-                  </h3>
-                  <p>
-                    <strong>Rating:</strong> {rating.Rating}
-                  </p>
-                  <p>
-                    <strong>Review:</strong> {rating.Review || 'No review provided'}
-                  </p>
-                  <div className="review-actions">
-                    <button
-                      className="view-recipe-button"
-                      onClick={() => navigate(`/recipes/${rating.recipe?._id}`)}
-                    >
-                      View Recipe
-                    </button>
-                    <button
-                      className="edit-review-button"
-                      onClick={() => handleEditClick(rating)}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      className="delete-review-button"
-                      onClick={() => handleDelete(rating._id)}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
+            <ReviewCard
+              key={rating._id}
+              rating={rating}
+              index={index}
+              page={page}
+              itemsPerPage={itemsPerPage}
+              editMode={editMode}
+              editReviewData={editReviewData}
+              handleEditClick={handleEditClick}
+              handleStarClick={handleStarClick}
+              handleChange={handleChange}
+              handleSave={handleSave}
+              handleDelete={handleDelete}
+              navigate={navigate}
+              setEditMode={setEditMode}
+            />
           ))}
         </div>
       ) : (
@@ -164,7 +209,7 @@ const UserReviews = () => {
       <div className="pagination-container">
         <button
           className="btn-pagination"
-          onClick={() => setPage(page - 1)}
+          onClick={() => handlePageChange(page - 1)}
           disabled={page === 1}
         >
           Previous
@@ -174,7 +219,7 @@ const UserReviews = () => {
         </span>
         <button
           className="btn-pagination"
-          onClick={() => setPage(page + 1)}
+          onClick={() => handlePageChange(page + 1)}
           disabled={page === totalPages}
         >
           Next

@@ -5,7 +5,6 @@ const mongoose = require('mongoose');
 
 // Add Rating
 
-// Add Rating
 exports.addRating = async (req, res) => {
   const { recipeId } = req.params;
   const { Rating: userRating, Review } = req.body;
@@ -16,29 +15,39 @@ exports.addRating = async (req, res) => {
 
   try {
     const recipe = await Recipe.findById(recipeId);
-    if (!recipe) return res.status(404).json({ message: 'Recipe not found.' });
-
-    const existingRating = await Rating.findOne({ recipe: recipeId, user: req.user.userId });
-    if (existingRating) {
-      return res.status(400).json({ message: 'Rating already exists.' });
+    if (!recipe) {
+      return res.status(404).json({ message: 'Recipe not found.' });
     }
 
-    const newRating = new Rating({ recipe: recipeId, user: req.user.userId, Rating: userRating, Review });
-    await newRating.save();
+    const newReviewId = recipe.Ratings.reduce((maxId, r) => Math.max(maxId, r.ReviewId || 0), 0) + 1;
 
-    // Recalculate ratings and invalidate cache
-    await recalculateRecipeRatings(recipeId);
-    await redisClient.del('top-popular-recipes');
-    await redisClient.del('top-active-users'); 
-    const keys = await redisClient.keys('search:*');
-    if (keys.length > 0) await redisClient.del(keys);
+    const newRating = {
+      ReviewId: newReviewId,
+      Rating: userRating,
+      Review,
+      username: req.user.username,
+      DateSubmitted: new Date(),
+    };
+
+    recipe.Ratings.push(newRating);
+
+    // Recalculate AggregatedRating and ReviewCount
+    recipe.AggregatedRating = parseFloat(
+      (recipe.Ratings.reduce((sum, r) => sum + r.Rating, 0) / recipe.Ratings.length).toFixed(2)
+    );
+    recipe.ReviewCount = recipe.Ratings.length;
+
+    await recipe.save();
 
     res.status(201).json({ message: 'Rating added successfully.' });
   } catch (error) {
-    console.error('Error adding rating:', error);
-    res.status(500).json({ message: 'Error adding rating', error: error.message });
+    console.error('Error adding rating:', error.message);
+    res.status(500).json({ message: 'Error adding rating.', error: error.message });
   }
 };
+
+
+
 
 
 
@@ -53,66 +62,98 @@ exports.updateRating = async (req, res) => {
   }
 
   try {
-    const existingRating = await Rating.findOne({ recipe: recipeId, user: req.user.userId });
-    if (!existingRating) {
+    const recipe = await Recipe.findById(recipeId);
+    if (!recipe) {
+      return res.status(404).json({ message: 'Recipe not found.' });
+    }
+
+    const rating = recipe.Ratings.find(r => r.username === req.user.username);
+    if (!rating) {
       return res.status(404).json({ message: 'Rating not found.' });
     }
 
-    existingRating.Rating = userRating;
-    existingRating.Review = Review;
-    existingRating.DateModified = Date.now();
-    await existingRating.save();
+    rating.Rating = userRating;
+    rating.Review = Review;
+    rating.DateModified = new Date();
 
-    // Recalculate ratings and invalidate cache
-    await recalculateRecipeRatings(recipeId);
-    await redisClient.del('top-popular-recipes');
-    await redisClient.del('top-active-users'); 
-    const keys = await redisClient.keys('search:*');
-    if (keys.length > 0) await redisClient.del(keys);
+    // Recalculate AggregatedRating and ReviewCount
+    recipe.AggregatedRating = parseFloat(
+      (recipe.Ratings.reduce((sum, r) => sum + r.Rating, 0) / recipe.Ratings.length).toFixed(2)
+    );
+    recipe.ReviewCount = recipe.Ratings.length;
+
+    await recipe.save();
 
     res.status(200).json({ message: 'Rating updated successfully.' });
   } catch (error) {
-    console.error('Error updating rating:', error);
-    res.status(500).json({ message: 'Error updating rating', error: error.message });
+    console.error('Error updating rating:', error.message);
+    res.status(500).json({ message: 'Error updating rating.', error: error.message });
   }
 };
+
+
+
 
 
 
 
 
 exports.deleteRating = async (req, res) => {
-  try {
-    const { id } = req.params; // Get the rating ID from the URL params
-    const userId = req.user.userId; // Get user ID from the token
+  const { recipeId, reviewId } = req.params;
 
-    // Find the rating to retrieve the associated recipe ID
-    const rating = await Rating.findOne({ _id: id, user: userId });
-    if (!rating) {
-      return res.status(404).json({ message: 'Rating not found or unauthorized' });
+  console.log(`Received RecipeId: ${recipeId}, ReviewId: ${reviewId}`);
+
+  if (!mongoose.Types.ObjectId.isValid(recipeId)) {
+    console.error('Invalid RecipeId:', recipeId);
+    return res.status(400).json({ message: 'Invalid recipe ID.' });
+  }
+
+  try {
+    const recipe = await Recipe.findById(recipeId);
+    if (!recipe) {
+      console.error('Recipe not found for RecipeId:', recipeId);
+      return res.status(404).json({ message: 'Recipe not found.' });
     }
 
-    const recipeId = rating.recipe;
+    console.log('Original Ratings:', recipe.Ratings);
 
-    // Delete the rating
-    await Rating.findOneAndDelete({ _id: id, user: userId });
+    // Remove the rating by ReviewId
+    const initialLength = recipe.Ratings.length;
+    recipe.Ratings = recipe.Ratings.filter(rating => rating.ReviewId !== parseInt(reviewId, 10));
 
-    // Recalculate the aggregated rating and review count for the recipe
-    await recalculateRecipeRatings(recipeId);
+    if (recipe.Ratings.length === initialLength) {
+      console.error('Rating not found for ReviewId:', reviewId);
+      return res.status(404).json({ message: 'Rating not found.' });
+    }
 
-    // Invalidate the top-popular-recipes cache to ensure fresh results
-    await redisClient.del('top-popular-recipes');
-    await redisClient.del(`recipe:${recipeId}`); // Invalidate cache for the updated recipe
-    await redisClient.del('top-active-users'); 
-    const keys = await redisClient.keys('search:*');
-    if (keys.length > 0) await redisClient.del(keys);
-    
-    res.status(200).json({ message: 'Rating deleted successfully' });
+    console.log('Updated Ratings:', recipe.Ratings);
+
+    // Update AggregatedRating and ReviewCount
+    if (recipe.Ratings.length > 0) {
+      recipe.AggregatedRating = parseFloat(
+        (recipe.Ratings.reduce((sum, r) => sum + r.Rating, 0) / recipe.Ratings.length).toFixed(2)
+      );
+    } else {
+      recipe.AggregatedRating = null; // No ratings left
+    }
+    recipe.ReviewCount = recipe.Ratings.length;
+
+    console.log('New AggregatedRating:', recipe.AggregatedRating, 'New ReviewCount:', recipe.ReviewCount);
+
+    // Save the updated recipe
+    await recipe.save();
+    console.log('Recipe saved successfully after deletion.');
+
+    res.status(200).json({ message: 'Rating deleted successfully.' });
   } catch (error) {
     console.error('Error deleting rating:', error.message);
-    res.status(500).json({ message: 'Failed to delete rating', error: error.message });
+    res.status(500).json({ message: 'Error deleting rating.', error: error.message });
   }
 };
+
+
+
+
 
 
 
@@ -121,121 +162,71 @@ exports.deleteRating = async (req, res) => {
 exports.getRatingsForRecipe = async (req, res) => {
   const { recipeId } = req.params;
   const page = parseInt(req.query.page) || 1;
-  const limit = 20;
+  const limit = parseInt(req.query.limit) || 10;
 
   if (!mongoose.Types.ObjectId.isValid(recipeId)) {
     return res.status(400).json({ message: 'Invalid recipe ID.' });
   }
 
   try {
-    const recipe = await Recipe.findById(recipeId);
+    const recipe = await Recipe.findById(recipeId).select('Name Ratings');
+
     if (!recipe) {
       return res.status(404).json({ message: 'Recipe not found.' });
     }
 
-    const ratings = await Rating.find({ recipe: recipeId })
-      .populate('user', 'username AuthorName')
-      .sort({ DateSubmitted: -1 }) // Uses index on recipe and DateSubmitted
-      .skip((page - 1) * limit)
-      .limit(limit);
-
-    const totalRatings = await Rating.countDocuments({ recipe: recipeId });
+    const totalRatings = recipe.Ratings.length;
+    const paginatedRatings = recipe.Ratings
+      .sort((a, b) => new Date(b.DateSubmitted) - new Date(a.DateSubmitted)) // Sort by newest first
+      .slice((page - 1) * limit, page * limit); // Paginate
 
     res.status(200).json({
-      reviews: ratings,
       recipeName: recipe.Name,
+      reviews: paginatedRatings,
       totalPages: Math.ceil(totalRatings / limit),
       currentPage: page,
     });
   } catch (error) {
-    console.error('Error fetching reviews:', error.message);
-    res.status(500).json({ message: 'Failed to fetch reviews.', error });
+    console.error('Error fetching ratings for recipe:', error.message);
+    res.status(500).json({ message: 'Failed to fetch ratings.', error: error.message });
   }
 };
-
-
-
-// Recalculate Recipe Ratings
-const recalculateRecipeRatings = async (recipeId) => {
-  try {
-    // Fetch all ratings for the recipe
-    const ratings = await Rating.find({ recipe: recipeId });
-
-    // Calculate total ratings and aggregated rating
-    const totalRatings = ratings.length;
-    const aggregatedRating =
-      totalRatings > 0
-        ? ratings.reduce((sum, rating) => sum + rating.Rating, 0) / totalRatings
-        : null; // Use null to represent no ratings instead of 0
-
-    // Find the recipe document
-    const recipe = await Recipe.findById(recipeId);
-    if (!recipe) {
-      console.warn(`Recipe with ID ${recipeId} not found.`);
-      return;
-    }
-
-    // Update the recipe document
-    recipe.AggregatedRating = aggregatedRating !== null ? parseFloat(aggregatedRating.toFixed(2)) : null;
-    recipe.ReviewCount = totalRatings;
-    await recipe.save();
-
-    // Invalidate cache for the specific recipe and top-popular-recipes
-    await redisClient.del(`recipe:${recipeId}`);
-    await redisClient.del('top-popular-recipes'); // Invalidate top recipes cache
-    const keys = await redisClient.keys('search:*');
-    if (keys.length > 0) await redisClient.del(keys);
-  } catch (error) {
-    console.error(`Error recalculating ratings for recipe ${recipeId}:`, error.message);
-  }
-};
-
-
-
-
-
-
-
-
 
 
 
 
 
 exports.getRatingsForLoggedInUser = async (req, res) => {
-  console.log("Entering getRatingsForLoggedInUser...");
-  console.log("User ID from token:", req.user.userId);
-
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
-  const skip = (page - 1) * limit;
 
   try {
-    // Fetch ratings for the logged-in user with pagination
-    const ratings = await Rating.find({ user: req.user.userId, recipe: { $ne: null } })
-      .populate('recipe', 'Name _id') // Populate only the Recipe Name and ID
-      .sort({ DateSubmitted: -1 }) // Sort by the latest submissions
-      .skip(skip)
-      .limit(limit);
+    // Fetch recipes with ratings by the logged-in user
+    const recipes = await Recipe.find({
+      "Ratings.username": req.user.username, // Match ratings with the user's username
+    }).select("Name Ratings");
 
-    // Log fetched ratings for debugging
-    console.log(
-      "Fetched Ratings:",
-      ratings.map((rating) => ({
-        ratingId: rating._id,
-        recipeId: rating.recipe?._id,
-        recipeName: rating.recipe?.Name,
-      }))
-    );
+    if (!recipes || recipes.length === 0) {
+      return res.status(404).json({ message: "No ratings found for the logged-in user." });
+    }
 
-    // Count total ratings for the user (using index on 'user')
-    const totalRatings = await Rating.countDocuments({ user: req.user.userId });
+    // Extract and combine all ratings from matching recipes
+    const allRatings = recipes
+      .flatMap(recipe =>
+        recipe.Ratings.filter(rating => rating.username === req.user.username).map(rating => ({
+          recipeId: recipe._id,
+          recipeName: recipe.Name,
+          ...rating._doc, // Include rating fields
+        }))
+      )
+      .sort((a, b) => new Date(b.DateSubmitted) - new Date(a.DateSubmitted)); // Sort by newest first
 
-    console.log(`Total Ratings for User ${req.user.userId}:`, totalRatings);
+    // Paginate the ratings
+    const totalRatings = allRatings.length;
+    const paginatedRatings = allRatings.slice((page - 1) * limit, page * limit);
 
-    // Send the response with ratings and pagination info
     res.status(200).json({
-      ratings,
+      ratings: paginatedRatings,
       totalPages: Math.ceil(totalRatings / limit),
       currentPage: page,
     });
@@ -243,6 +234,5 @@ exports.getRatingsForLoggedInUser = async (req, res) => {
     console.error("Error fetching ratings for logged-in user:", error.message);
     res.status(500).json({ message: "Failed to fetch ratings.", error: error.message });
   }
-
-  console.log("Exiting getRatingsForLoggedInUser...");
 };
+

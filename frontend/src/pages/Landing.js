@@ -31,11 +31,11 @@ const Landing = () => {
         setCurrentPage(response.data.currentPage || 1);
         setTotalPages(response.data.totalPages || 1);
         setError(null);
-  
+
         // Save state to sessionStorage
-        sessionStorage.setItem('currentRecipes', JSON.stringify(response.data.recipes));
-        sessionStorage.setItem('currentPage', response.data.currentPage);
-        sessionStorage.setItem('totalPages', response.data.totalPages);
+        sessionStorage.setItem('landingRecipes', JSON.stringify(response.data.recipes));
+        sessionStorage.setItem('landingCurrentPage', response.data.currentPage);
+        sessionStorage.setItem('landingTotalPages', response.data.totalPages);
       } catch (err) {
         console.error('Error fetching recipes:', err.message);
         setError('Failed to load recipes. Please try again.');
@@ -43,17 +43,16 @@ const Landing = () => {
         setLoading(false);
       }
     };
-  
+
     fetchRecipes(currentPage);
   }, [currentPage]); // Trigger when currentPage changes
-  
+
   const handlePageChange = (newPage) => {
     if (newPage > 0 && newPage <= totalPages) {
       setCurrentPage(newPage);
-      sessionStorage.setItem('currentPage', newPage); // Save updated page
+      sessionStorage.setItem('landingCurrentPage', newPage); // Save updated page
     }
   };
-  
 
   const handleAddReview = (recipeId) => {
     if (!isAuthenticated) {
@@ -97,7 +96,6 @@ const Landing = () => {
         </div>
       </div>
 
-
       {/* Explore Recipes Section */}
       <h2 className="explore-title">Explore Recipes</h2>
 
@@ -126,7 +124,7 @@ const Landing = () => {
                   View More
                 </button>
                 <p>
-                  <strong>Submitted by:</strong> {recipe.user?.AuthorName || 'Anonymous'}
+                  <strong>Submitted by:</strong> {recipe.username || 'Anonymous'}
                 </p>
               </div>
 

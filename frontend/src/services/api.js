@@ -105,8 +105,11 @@ export const updateRating = (recipeId, ratingData) =>
   axiosInstance.put(`/ratings/${recipeId}/update`, ratingData);
 
 
-// Deletes a specific rating
-export const deleteRating = (ratingId) => axiosInstance.delete(`/ratings/${ratingId}`);
+export const deleteRating = (recipeId, reviewId) => {
+  console.log('DELETE request to:', `/ratings/${recipeId}/${reviewId}`);
+  return axiosInstance.delete(`/ratings/${recipeId}/${reviewId}`);
+};
+
 
 
 
