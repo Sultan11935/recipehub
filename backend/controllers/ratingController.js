@@ -39,6 +39,14 @@ exports.addRating = async (req, res) => {
 
     await recipe.save();
 
+    // Invalidate cache after saving to ensure consistency
+    await redisClient.del('top-popular-recipes'); // Invalidate top recipes cache
+    await redisClient.del('fastest-recipes'); // Invalidate fastest recipes cache
+    const keys = await redisClient.keys('search:*'); // Get all search-related keys
+    if (keys.length > 0) {
+      await redisClient.del(keys); // Invalidate search query cache
+    }
+
     res.status(201).json({ message: 'Rating added successfully.' });
   } catch (error) {
     console.error('Error adding rating:', error.message);
@@ -83,6 +91,14 @@ exports.updateRating = async (req, res) => {
     recipe.ReviewCount = recipe.Ratings.length;
 
     await recipe.save();
+    // Invalidate cache after saving to ensure consistency
+    await redisClient.del('top-popular-recipes'); // Invalidate top recipes cache
+    await redisClient.del('fastest-recipes'); // Invalidate fastest recipes cache
+    const keys = await redisClient.keys('search:*'); // Get all search-related keys
+    if (keys.length > 0) {
+      await redisClient.del(keys); // Invalidate search query cache
+    }
+
 
     res.status(200).json({ message: 'Rating updated successfully.' });
   } catch (error) {
@@ -142,6 +158,14 @@ exports.deleteRating = async (req, res) => {
 
     // Save the updated recipe
     await recipe.save();
+        // Invalidate cache after saving to ensure consistency
+    await redisClient.del('top-popular-recipes'); // Invalidate top recipes cache
+    await redisClient.del('fastest-recipes'); // Invalidate fastest recipes cache
+    const keys = await redisClient.keys('search:*'); // Get all search-related keys
+    if (keys.length > 0) {
+      await redisClient.del(keys); // Invalidate search query cache
+    }
+
     console.log('Recipe saved successfully after deletion.');
 
     res.status(200).json({ message: 'Rating deleted successfully.' });

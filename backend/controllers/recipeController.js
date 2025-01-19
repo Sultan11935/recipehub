@@ -45,6 +45,14 @@ exports.createRecipe = async (req, res) => {
     });
 
     await recipe.save();
+    // Invalidate cache after saving to ensure consistency
+    await redisClient.del('top-popular-recipes'); // Invalidate top recipes cache
+    await redisClient.del('fastest-recipes'); // Invalidate fastest recipes cache
+    const keys = await redisClient.keys('search:*'); // Get all search-related keys
+    if (keys.length > 0) {
+      await redisClient.del(keys); // Invalidate search query cache
+    }
+    
     
     await redisClient.del('recipes'); // Clear cache of all recipes
 
@@ -146,10 +154,12 @@ exports.updateRecipe = async (req, res) => {
     // Invalidate Redis cache
     await redisClient.del(`recipe:${id}`); // Invalidate specific recipe cache
     await redisClient.del('top-popular-recipes'); // Invalidate top recipes cache
+    await redisClient.del('fastest-recipes'); // Invalidate fastest recipes cache
     const keys = await redisClient.keys('search:*'); // Get all search-related keys
     if (keys.length > 0) {
       await redisClient.del(keys); // Invalidate search query cache
     }
+
 
     res.status(200).json(updatedRecipe);
   } catch (error) {
@@ -179,10 +189,12 @@ exports.deleteRecipe = async (req, res) => {
     await redisClient.del(`recipe:${id}`); // Invalidate specific recipe cache
     await redisClient.del('recipes'); // Invalidate general recipes cache
     await redisClient.del('top-popular-recipes'); // Invalidate top recipes cache
+    await redisClient.del('fastest-recipes'); // Invalidate fastest recipes cache
     const keys = await redisClient.keys('search:*'); // Get all search-related keys
     if (keys.length > 0) {
       await redisClient.del(keys); // Invalidate search query cache
     }
+
 
     res.status(200).json({ message: 'Recipe deleted successfully' });
   } catch (error) {
@@ -255,6 +267,15 @@ exports.searchRecipes = async (req, res) => {
       totalRecipes,
     };
 
+    // Invalidate cache after saving to ensure consistency
+    await redisClient.del('top-popular-recipes'); // Invalidate top recipes cache
+    await redisClient.del('fastest-recipes'); // Invalidate fastest recipes cache
+    const keys = await redisClient.keys('search:*'); // Get all search-related keys
+    if (keys.length > 0) {
+      await redisClient.del(keys); // Invalidate search query cache
+    }
+
+
     await redisClient.setEx(cacheKey, 3600, JSON.stringify(response)); // Cache results for 1 hour
     res.status(200).json(response);
   } catch (error) {
@@ -262,7 +283,6 @@ exports.searchRecipes = async (req, res) => {
     res.status(500).json({ message: 'Error searching recipes', error: error.message });
   }
 };
-
 
 
 
@@ -297,6 +317,14 @@ exports.getTopPopularRecipes = async (req, res) => {
       },
     ]);
 
+    // Invalidate cache after saving to ensure consistency
+    await redisClient.del('top-popular-recipes'); // Invalidate top recipes cache
+    await redisClient.del('fastest-recipes'); // Invalidate fastest recipes cache
+    const keys = await redisClient.keys('search:*'); // Get all search-related keys
+    if (keys.length > 0) {
+      await redisClient.del(keys); // Invalidate search query cache
+    }
+
     // Store result in Redis cache for 1 hour
     await redisClient.setEx(cacheKey, 3600, JSON.stringify(recipes));
 
@@ -320,16 +348,24 @@ exports.getFastestRecipes = async (req, res) => {
     const cachedData = await redisClient.get(cacheKey);
     if (cachedData) {
       console.log('Serving Fastest Recipes from Redis Cache');
-      return res.status(200).json(JSON.parse(cachedData));
+      return res.status(200).json(JSON.parse(cachedData)); // Return here to avoid further processing
     }
 
-    // Fetch recipes sorted by TotalTime
+    // Fetch recipes sorted by CookTime, PrepTime, and TotalTime
     const recipes = await Recipe.aggregate([
       {
-        $match: { TotalTime: { $ne: null } }, // Filter out recipes with null TotalTime
+        $match: {
+          CookTime: { $ne: null }, // Exclude recipes with null CookTime
+          //PrepTime: { $ne: null }, // Exclude recipes with null PrepTime
+          //TotalTime: { $ne: null }, // Exclude recipes with null TotalTime
+        },
       },
       {
-        $sort: { TotalTime: 1 }, // Sort by TotalTime ascending
+        $sort: {
+          CookTime: 1, // Sort by CookTime ascending
+          //PrepTime: 1, // Then by PrepTime ascending
+          //TotalTime: 1, // Then by TotalTime ascending
+        },
       },
       {
         $limit: 10, // Limit to top 10 fastest recipes
@@ -348,14 +384,22 @@ exports.getFastestRecipes = async (req, res) => {
       },
     ]);
 
+    // Invalidate cache after saving to ensure consistency
+    await redisClient.del('top-popular-recipes'); // Invalidate top recipes cache
+    await redisClient.del('fastest-recipes'); // Invalidate fastest recipes cache
+    const keys = await redisClient.keys('search:*'); // Get all search-related keys
+    if (keys.length > 0) {
+      await redisClient.del(keys); // Invalidate search query cache
+    }
+    
     // Cache the result for 1 hour
     await redisClient.setEx(cacheKey, 3600, JSON.stringify(recipes));
 
-    res.status(200).json(recipes);
+    res.status(200).json(recipes); // Send the response here
   } catch (error) {
     console.error('Error fetching fastest recipes:', error.message);
-    res.status(500).json({ message: 'Error fetching fastest recipes', error: error.message });
+    if (!res.headersSent) { // Ensure headers haven't already been sent
+      res.status(500).json({ message: 'Error fetching fastest recipes', error: error.message });
+    }
   }
 };
-
-
